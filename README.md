@@ -1,0 +1,6 @@
+<img align="right" src="https://github.com/notjustanna/leanvm/raw/main/resources/logo.svg" height="250" width="250" alt="LeanVM Logo">
+
+LeanVM [![build](https://github.com/notjustanna/leanvm/actions/workflows/build.yml/badge.svg)](https://github.com/notjustanna/leanvm/actions/workflows/build.yml)
+=========
+
+LeanVM is a lean and fast bytecode and virtual machine, designed from the ground up to be embedded into anything and everything.
