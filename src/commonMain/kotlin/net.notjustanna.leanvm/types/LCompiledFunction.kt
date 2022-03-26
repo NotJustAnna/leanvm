@@ -3,10 +3,10 @@ package net.notjustanna.leanvm.types
 import net.notjustanna.leanvm.Scope
 import net.notjustanna.leanvm.bytecode.LeanCode
 import net.notjustanna.leanvm.bytecode.LeanFuncDecl
-import net.notjustanna.leanvm.context.FunctionSetupContext
-import net.notjustanna.leanvm.context.LeanContext
-import net.notjustanna.leanvm.context.LeanMachineControl
-import net.notjustanna.leanvm.context.LeanRuntime
+import net.notjustanna.leanvm.ctx.FunctionSetupContext
+import net.notjustanna.leanvm.ctx.LeanContext
+import net.notjustanna.leanvm.ctx.LeanMachineControl
+import net.notjustanna.leanvm.ctx.LeanRuntime
 
 public class LCompiledFunction(
     public val source: LeanCode,

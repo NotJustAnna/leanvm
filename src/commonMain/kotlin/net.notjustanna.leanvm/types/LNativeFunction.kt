@@ -1,9 +1,9 @@
 package net.notjustanna.leanvm.types
 
-import net.notjustanna.leanvm.context.LeanContext
-import net.notjustanna.leanvm.context.LeanMachineControl
-import net.notjustanna.leanvm.context.LeanRuntime
-import net.notjustanna.leanvm.context.NativeFunctionContext
+import net.notjustanna.leanvm.ctx.LeanContext
+import net.notjustanna.leanvm.ctx.LeanMachineControl
+import net.notjustanna.leanvm.ctx.LeanRuntime
+import net.notjustanna.leanvm.ctx.NativeFunctionContext
 
 public class LNativeFunction(
     override val name: String? = null,

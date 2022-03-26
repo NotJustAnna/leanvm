@@ -64,13 +64,13 @@ kotlin {
         val jsTest by getting
 
         val lowLevelMain by creating { dependsOn(commonMain) }
-        val lowLevelTest by creating { dependsOn(lowLevelMain) }
+        val lowLevelTest by creating { dependsOn(commonTest) }
 
         val jvmMain by getting { dependsOn(lowLevelMain) }
-        val jvmTest by getting { dependsOn(jvmMain) }
+        val jvmTest by getting { dependsOn(lowLevelTest) }
 
         val nativeMain by creating { dependsOn(lowLevelMain) }
-        val nativeTest by creating { dependsOn(nativeMain) }
+        val nativeTest by creating { dependsOn(lowLevelTest) }
 
         val linuxX64Main by getting { dependsOn(nativeMain) }
         val linuxX64Test by getting { dependsOn(nativeTest) }

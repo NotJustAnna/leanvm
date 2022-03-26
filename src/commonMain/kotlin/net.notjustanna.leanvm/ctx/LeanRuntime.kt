@@ -1,4 +1,4 @@
-package net.notjustanna.leanvm.context
+package net.notjustanna.leanvm.ctx
 
 import net.notjustanna.leanvm.exceptions.LeanUnsupportedOperationException
 import net.notjustanna.leanvm.types.LAny

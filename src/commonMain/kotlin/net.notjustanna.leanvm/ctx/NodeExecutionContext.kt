@@ -1,4 +1,4 @@
-package net.notjustanna.leanvm.context
+package net.notjustanna.leanvm.ctx
 
 import net.notjustanna.leanvm.LAnyException
 import net.notjustanna.leanvm.Scope

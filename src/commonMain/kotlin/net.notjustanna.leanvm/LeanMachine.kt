@@ -1,7 +1,7 @@
 package net.notjustanna.leanvm
 
-import net.notjustanna.leanvm.context.LeanContext
-import net.notjustanna.leanvm.context.LeanMachineControl
+import net.notjustanna.leanvm.ctx.LeanContext
+import net.notjustanna.leanvm.ctx.LeanMachineControl
 import net.notjustanna.leanvm.types.LAny
 
 public class LeanMachine(initializer: (LeanMachineControl) -> LeanContext) {

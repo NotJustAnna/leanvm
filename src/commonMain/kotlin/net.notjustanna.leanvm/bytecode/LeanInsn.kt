@@ -21,12 +21,22 @@ public data class LeanInsn(val opcode: Int, val immediate: Int) : Serializable {
         SUBTRACT, MULTIPLY, DIVIDE, REMAINING, EQUALS, NOT_EQUALS, LT, LTE, GT, GTE, IN, RANGE
     }
 
+    override fun toString(): String {
+        if (opcode in 0..Opcode.values().size) {
+            if (opcode == Opcode.PARAMETERLESS.ordinal && immediate in 0..ParameterlessCode.values().size) {
+                return "LeanInsn[${ParameterlessCode.values()[immediate]} (PARAMETERLESS)]"
+            }
+            return "LeanInsn[${Opcode.values()[opcode]}, 0x${immediate.toUInt().toString(16)}]"
+        }
+        return "LeanInsn[0x${opcode.toUInt().toString(16)}, 0x${immediate.toUInt().toString(16)}]"
+    }
+
     public companion object : Deserializer<LeanInsn> {
-        public fun parameterless(code: ParameterlessCode) : LeanInsn {
+        public fun parameterless(code: ParameterlessCode): LeanInsn {
             return simple(Opcode.PARAMETERLESS, code.ordinal)
         }
 
-        public fun smallBig(opcode: Opcode, small: Int, big: Int) : LeanInsn {
+        public fun smallBig(opcode: Opcode, small: Int, big: Int): LeanInsn {
             return simple(
                 opcode,
                 small.requireU16("LeanInsn#small") shl 16 or big.requireU16("LeanInsn#big")

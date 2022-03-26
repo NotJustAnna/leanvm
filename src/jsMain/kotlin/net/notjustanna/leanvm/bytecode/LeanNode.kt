@@ -1,10 +1,6 @@
 package net.notjustanna.leanvm.bytecode
 
-import net.notjustanna.leanvm.utils.isU24
-import net.notjustanna.leanvm.utils.readU24
-import net.notjustanna.leanvm.utils.writeU24
-import net.notjustanna.leanvm.utils.Deserializer
-import net.notjustanna.leanvm.utils.Serializable
+import net.notjustanna.leanvm.utils.*
 import okio.Buffer
 
 public actual class LeanNode(
@@ -87,6 +83,10 @@ public actual class LeanNode(
 
         buffer.writeInt(sectArr.size)
         for (label in sectArr) label.serializeTo(buffer)
+    }
+
+    override fun toString(): String {
+        return "LeanNode[$insnCount insns, $jumpCount jumps, $sectCount sects]"
     }
 
     public actual companion object : Deserializer<LeanNode> {
