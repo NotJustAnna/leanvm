@@ -60,10 +60,6 @@ public object Exceptions {
         )
     }
 
-    public fun toObject(e: LinNativeException, stackTrace: List<StackTrace>): LObject {
-        return create(e.exceptionType, e.exceptionDescription, stackTrace)
-    }
-
     public fun fromNative(e: Exception, stackTrace: List<StackTrace>): LAny {
         return create("nativeException", e.toString(), stackTrace)
     }

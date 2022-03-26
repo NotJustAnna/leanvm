@@ -7,6 +7,7 @@ public data class LInteger(val value: Long) : LNumber() {
         return when (other) {
             is LDecimal -> value.compareTo(other.value)
             is LInteger -> value.compareTo(other.value)
+            else -> throw AssertionError("Exhaustive match failed")
         }
     }
 
@@ -14,6 +15,7 @@ public data class LInteger(val value: Long) : LNumber() {
         return when (right) {
             is LDecimal -> LDecimal(value + right.value)
             is LInteger -> LInteger(value + right.value)
+            else -> throw AssertionError("Exhaustive match failed")
         }
     }
 
@@ -21,6 +23,7 @@ public data class LInteger(val value: Long) : LNumber() {
         return when (right) {
             is LDecimal -> LDecimal(value - right.value)
             is LInteger -> LInteger(value - right.value)
+            else -> throw AssertionError("Exhaustive match failed")
         }
     }
 
@@ -28,6 +31,7 @@ public data class LInteger(val value: Long) : LNumber() {
         return when (right) {
             is LDecimal -> LDecimal(value * right.value)
             is LInteger -> LInteger(value * right.value)
+            else -> throw AssertionError("Exhaustive match failed")
         }
     }
 
@@ -35,6 +39,7 @@ public data class LInteger(val value: Long) : LNumber() {
         return when (right) {
             is LDecimal -> LDecimal(value / right.value)
             is LInteger -> LInteger(value / right.value)
+            else -> throw AssertionError("Exhaustive match failed")
         }
     }
 
@@ -42,6 +47,7 @@ public data class LInteger(val value: Long) : LNumber() {
         return when (right) {
             is LDecimal -> LDecimal(value % right.value)
             is LInteger -> LInteger(value % right.value)
+            else -> throw AssertionError("Exhaustive match failed")
         }
     }
 

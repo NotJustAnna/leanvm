@@ -3,10 +3,10 @@ package net.adriantodt.leanvm.types
 import net.adriantodt.leanvm.Scope
 import net.adriantodt.leanvm.bytecode.LeanCode
 import net.adriantodt.leanvm.bytecode.LeanFuncDecl
-import net.adriantodt.leanvm.context.FunctionSetupContext
-import net.adriantodt.leanvm.context.LeanContext
-import net.adriantodt.leanvm.context.LeanMachineControl
-import net.adriantodt.leanvm.context.LeanRuntime
+import net.adriantodt.leanvm.ctx.FunctionSetupContext
+import net.adriantodt.leanvm.ctx.LeanContext
+import net.adriantodt.leanvm.ctx.LeanMachineControl
+import net.adriantodt.leanvm.ctx.LeanRuntime
 
 public class LCompiledFunction(
     public val source: LeanCode,
