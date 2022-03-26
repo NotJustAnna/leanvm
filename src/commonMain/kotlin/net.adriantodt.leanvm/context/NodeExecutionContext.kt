@@ -1,33 +1,36 @@
 package net.adriantodt.leanvm.context
 
-import net.adriantodt.leanvm.*
+import net.adriantodt.leanvm.LAnyException
+import net.adriantodt.leanvm.Scope
+import net.adriantodt.leanvm.StackTrace
 import net.adriantodt.leanvm.bytecode.LeanCode
 import net.adriantodt.leanvm.bytecode.LeanInsn.Opcode
 import net.adriantodt.leanvm.bytecode.LeanInsn.ParameterlessCode
 import net.adriantodt.leanvm.bytecode.LeanNode
-import net.adriantodt.leanvm.exceptions.Exceptions
-import net.adriantodt.leanvm.exceptions.LeanUnsupportedOperationException
-import net.adriantodt.leanvm.exceptions.StackUnderflowException
+import net.adriantodt.leanvm.exceptions.LeanNullPointerException
+import net.adriantodt.leanvm.exceptions.MalformedBytecodeException
+import net.adriantodt.leanvm.exceptions.old.Exceptions
 import net.adriantodt.leanvm.types.*
+import net.adriantodt.leanvm.utils.Comparison
 
-public class ExecutionContext(
-    private val access: LeanMachineAccess,
-    private var scope: Scope,
-    private val source: LeanCode,
-    private val functionName: String,
-    private val node: LeanNode = source.node(0),
+public class NodeExecutionContext(
+    private val control: LeanMachineControl,
+    private val code: LeanCode,
+    private var scope: Scope = Scope(),
+    private val functionName: String = "<main>",
+    override val runtime: LeanRuntime = LeanRuntime(),
+    private val node: LeanNode = code.node(0),
     private val thisValue: LAny? = null,
 ) : LeanContext {
     private var next: Int = 0
     private val stack: MutableList<LAny> = mutableListOf()
     private val exceptionHandlers: MutableList<ExceptionHandler> = mutableListOf()
-    private val loopHandlers: MutableList<LoopHandler> = mutableListOf()
 
     override fun step() {
         val insn = node.insnOrNull(next++)
 
         if (insn == null) {
-            access.onReturn(stack.removeLastOrNull() ?: LNull)
+            control.onReturn(stack.removeLastOrNull() ?: LNull)
             return
         }
 
@@ -35,18 +38,14 @@ public class ExecutionContext(
             Opcode.PARAMETERLESS -> when (ParameterlessCode.values()[insn.immediate]) {
                 ParameterlessCode.ARRAY_INSERT -> {
                     val value = popStack()
-                    val array = peekStack() as? LArray ?: error("Value is not an LArray.")
+                    val array = peekStack()
+                    if (array !is LArray) {
+                        throw MalformedBytecodeException(
+                            "Tried to arrayInsert value '$value' into '$array' which is of type '${array.type}'.",
+                            control.stackTrace()
+                        )
+                    }
                     array.value.add(value)
-                }
-                ParameterlessCode.BREAK -> {
-                    // TODO error on empty loop handlers
-                    val last = loopHandlers.removeLast()
-                    next = last.jumpOnBreak
-                }
-                ParameterlessCode.CONTINUE -> {
-                    // TODO error on empty loop handlers
-                    val last = loopHandlers.removeLast()
-                    next = last.jumpOnContinue
                 }
                 ParameterlessCode.DUP -> {
                     stack.add(peekStack())
@@ -60,20 +59,29 @@ public class ExecutionContext(
                 ParameterlessCode.OBJECT_INSERT -> {
                     val value = popStack()
                     val key = popStack()
-                    val obj = peekStack() as? LObject ?: error("Value is not an LObject.")
+                    val obj = peekStack()
+                    if (obj !is LObject) {
+                        throw MalformedBytecodeException(
+                            "Tried to objectInsert key '$key' and value '$value' into '$obj' which is of type '${obj.type}'.",
+                            control.stackTrace()
+                        )
+                    }
                     obj.value[key] = value
                 }
                 ParameterlessCode.POP -> {
                     popStack()
                 }
                 ParameterlessCode.POP_SCOPE -> {
-                    scope = scope.parent ?: error("Can't pop root scope.")
+                    scope = scope.parent ?: throw MalformedBytecodeException(
+                        "Tried to pop scope but encountered a root scope.",
+                        control.stackTrace()
+                    )
                 }
                 ParameterlessCode.POP_EXCEPTION_HANDLING -> {
-                    exceptionHandlers.removeLast()
-                }
-                ParameterlessCode.POP_LOOP_HANDLING -> {
-                    loopHandlers.removeLast()
+                    exceptionHandlers.removeLastOrNull() ?: throw MalformedBytecodeException(
+                        "Tried execute POP_EXCEPTION_HANDLING instruction but found no exception handler.",
+                        control.stackTrace()
+                    )
                 }
                 ParameterlessCode.PUSH_NULL -> {
                     stack.add(LNull)
@@ -82,10 +90,10 @@ public class ExecutionContext(
                     scope = Scope(scope)
                 }
                 ParameterlessCode.PUSH_THIS -> {
-                    stack.add(thisValue ?: error("There's no 'this' defined."))
+                    stack.add(thisValue ?: runtime.customThisValue(control))
                 }
                 ParameterlessCode.RETURN -> {
-                    access.onReturn(popStack())
+                    control.onReturn(popStack())
                 }
                 ParameterlessCode.THROW -> {
                     onThrow(popStack())
@@ -94,62 +102,77 @@ public class ExecutionContext(
                     stack.add(LString(popStack().type.toString()))
                 }
                 ParameterlessCode.PUSH_TRUE -> {
-                    stack.add(LTrue)
+                    stack.add(LBoolean.True)
                 }
                 ParameterlessCode.PUSH_FALSE -> {
-                    stack.add(LFalse)
+                    stack.add(LBoolean.False)
                 }
-                ParameterlessCode.UNARY_POSITIVE -> handleUnaryPositiveOperation()
-                ParameterlessCode.UNARY_NEGATIVE -> handleUnaryNegativeOperation()
-                ParameterlessCode.UNARY_TRUTH -> handleUnaryTruthOperation()
-                ParameterlessCode.UNARY_NOT -> handleUnaryNotOperation()
-                ParameterlessCode.BINARY_ADD -> handleBinaryAddOperation()
-                ParameterlessCode.BINARY_SUBTRACT -> handleBinarySubtractOperation()
-                ParameterlessCode.BINARY_MULTIPLY -> handleBinaryMultiplyOperation()
-                ParameterlessCode.BINARY_DIVIDE -> handleBinaryDivideOperation()
-                ParameterlessCode.BINARY_REMAINING -> handleBinaryRemainingOperation()
-                ParameterlessCode.BINARY_EQUALS -> handleBinaryEqualsOperation()
-                ParameterlessCode.BINARY_NOT_EQUALS -> handleBinaryNotEqualsOperation()
-                ParameterlessCode.BINARY_LT -> handleBinaryComparison(LT)
-                ParameterlessCode.BINARY_LTE -> handleBinaryComparison(LTE)
-                ParameterlessCode.BINARY_GT -> handleBinaryComparison(GT)
-                ParameterlessCode.BINARY_GTE -> handleBinaryComparison(GTE)
-                ParameterlessCode.BINARY_IN -> handleBinaryInOperation()
-                ParameterlessCode.BINARY_RANGE -> handleBinaryRangeOperation()
+                ParameterlessCode.POSITIVE -> handlePositiveOperation()
+                ParameterlessCode.NEGATIVE -> handleNegativeOperation()
+                ParameterlessCode.TRUTH -> {
+                    stack.add(LBoolean.of(popStack().truth()))
+                }
+                ParameterlessCode.NOT -> {
+                    stack.add(LBoolean.of(!popStack().truth()))
+                }
+                ParameterlessCode.ADD -> handleAddOperation()
+                ParameterlessCode.SUBTRACT -> handleSubtractOperation()
+                ParameterlessCode.MULTIPLY -> handleMultiplyOperation()
+                ParameterlessCode.DIVIDE -> handleDivideOperation()
+                ParameterlessCode.REMAINING -> handleRemainingOperation()
+                ParameterlessCode.EQUALS -> {
+                    val right = popStack()
+                    val left = popStack()
+                    stack.add(LBoolean.of(right == left))
+                }
+                ParameterlessCode.NOT_EQUALS -> {
+                    val right = popStack()
+                    val left = popStack()
+                    stack.add(LBoolean.of(right != left))
+                }
+                ParameterlessCode.LT -> handleComparison(Comparison.LT)
+                ParameterlessCode.LTE -> handleComparison(Comparison.LTE)
+                ParameterlessCode.GT -> handleComparison(Comparison.GT)
+                ParameterlessCode.GTE -> handleComparison(Comparison.GTE)
+                ParameterlessCode.IN -> handleInOperation()
+                ParameterlessCode.RANGE -> handleRangeOperation()
             }
             Opcode.ASSIGN -> {
-                scope.set(source.sConst(insn.immediate), popStack())
+                scope.set(code.sConst(insn.immediate), popStack())
             }
             Opcode.BRANCH_IF_FALSE -> handleBranchIf(false, insn.immediate)
             Opcode.BRANCH_IF_TRUE -> handleBranchIf(true, insn.immediate)
             Opcode.DECLARE_VARIABLE_IMMUTABLE -> {
-                scope.define(source.sConst(insn.immediate), false)
+                scope.define(code.sConst(insn.immediate), false)
             }
             Opcode.DECLARE_VARIABLE_MUTABLE -> {
-                scope.define(source.sConst(insn.immediate), true)
+                scope.define(code.sConst(insn.immediate), true)
             }
             Opcode.GET_MEMBER_PROPERTY -> handleGetMemberProperty(insn.immediate)
             Opcode.GET_SUBSCRIPT -> handleGetSubscript(insn.immediate)
             Opcode.GET_VARIABLE -> {
-                stack.add(scope.get(source.sConst(insn.immediate)))
+                stack.add(scope.get(code.sConst(insn.immediate)))
             }
             Opcode.INVOKE -> handleInvoke(insn.immediate)
             Opcode.INVOKE_LOCAL -> handleInvokeLocal(insn.immediate)
             Opcode.INVOKE_MEMBER -> handleInvokeMember(insn.immediate)
             Opcode.JUMP -> {
-                next = node.findJump(insn.immediate)?.at ?: error("Label ${insn.immediate} was not found.")
+                next = node.findJump(insn.immediate)?.at ?: throw MalformedBytecodeException(
+                    "Tried to jump to label ${insn.immediate} which wasn't defined.",
+                    control.stackTrace()
+                )
             }
             Opcode.LOAD_DECIMAL -> {
-                stack.add(LDecimal(Double.fromBits(source.lConst(insn.immediate))))
+                stack.add(LDecimal(Double.fromBits(code.lConst(insn.immediate))))
             }
             Opcode.LOAD_INTEGER -> {
-                stack.add(LInteger(source.lConst(insn.immediate)))
+                stack.add(LInteger(code.lConst(insn.immediate)))
             }
             Opcode.LOAD_STRING -> {
-                stack.add(LString(source.sConst(insn.immediate)))
+                stack.add(LString(code.sConst(insn.immediate)))
             }
             Opcode.NEW_FUNCTION -> {
-                stack.add(LCompiledFunction(source, source.func(insn.immediate), scope))
+                stack.add(LCompiledFunction(code, code.func(insn.immediate), runtime, scope))
             }
             Opcode.PUSH_CHAR -> {
                 val value = insn.immediate.toChar()
@@ -166,11 +189,10 @@ public class ExecutionContext(
                 stack.add(LInteger(insn.immediate.toLong()))
             }
             Opcode.PUSH_EXCEPTION_HANDLING -> handlePushExceptionHandling(insn.immediate)
-            Opcode.PUSH_LOOP_HANDLING -> handlePushLoopHandling(insn.immediate)
             Opcode.SET_MEMBER_PROPERTY -> handleSetMemberProperty(insn.immediate)
             Opcode.SET_SUBSCRIPT -> handleSetSubscript(insn.immediate)
             Opcode.SET_VARIABLE -> {
-                scope.set(source.sConst(insn.immediate), popStack())
+                scope.set(code.sConst(insn.immediate), popStack())
             }
         }
     }
@@ -182,7 +204,7 @@ public class ExecutionContext(
     override fun onThrow(value: LAny) {
         val handler = exceptionHandlers.removeLastOrNull()
         if (handler == null) {
-            access.onThrow(value)
+            control.onThrow(value)
             return
         }
         if (handler.keepOnStack < stack.size) {
@@ -196,39 +218,53 @@ public class ExecutionContext(
 
     override fun trace(): StackTrace? {
         val label = node.findSect(next - 1) ?: return null
-        val section = source.sectOrNull(label.index) ?: return null
-        return StackTrace(functionName, source.sConst(section.nameConst), section.line, section.column)
+        val section = code.sectOrNull(label.index) ?: return null
+        return StackTrace(functionName, code.sConst(section.nameConst), section.line, section.column)
     }
 
+    // TODO Add `finally` handling
     public data class ExceptionHandler(val keepOnStack: Int, val jumpOnException: Int, val jumpOnEnd: Int)
-    public data class LoopHandler(val keepOnStack: Int, val jumpOnBreak: Int, val jumpOnContinue: Int)
 
     private fun popStack(): LAny {
-        return stack.removeLastOrNull()
-            ?: throw StackUnderflowException("Tried to remove an item from the stack, but the stack is empty.")
+        return stack.removeLastOrNull() ?: throw MalformedBytecodeException(
+            "Tried to remove an item from the stack, but the stack is empty.",
+            control.stackTrace()
+        )
     }
 
     private fun peekStack(): LAny {
-        return stack.lastOrNull()
-            ?: throw StackUnderflowException("Tried to get the last item from the stack, but the stack is empty.")
+        return stack.lastOrNull() ?: throw MalformedBytecodeException(
+            "Tried to get the last item from the stack, but the stack is empty.",
+            control.stackTrace()
+        )
     }
 
     // handlers
 
     private fun handleBranchIf(value: Boolean, labelCode: Int) {
         if (popStack().truth() == value) {
-            next = node.findJump(labelCode)?.at ?: error("Label $labelCode was not found.")
+            next = node.findJump(labelCode)?.at ?: throw MalformedBytecodeException(
+                "Tried to branch to label $labelCode which wasn't defined.",
+                control.stackTrace()
+            )
         }
     }
 
     private fun handleGetMemberProperty(nameConst: Int) {
         val target = popStack()
-        val name = source.sConst(nameConst)
-        val member = access.runtime.getMember(target, name)
+        val name = code.sConst(nameConst)
+        if (target is LNull) {
+            throw LeanNullPointerException(
+                "Tried to access member '$name' of null target.", control.stackTrace()
+            )
+        }
+        val member = runtime.getMember(target, name)
         if (member != null) {
             stack.add(member)
         }
-        access.runtime.noElementExists(access, target.type, name)
+
+        // TODO Throw actually useful exception
+        throw LAnyException(Exceptions.noElementExists(name, control.stackTrace()))
     }
 
     private fun handleGetSubscript(size: Int) {
@@ -264,11 +300,8 @@ public class ExecutionContext(
         }
         if (parent is LObject && size == 1) {
             val arg = arguments.first()
-            val element = parent.value[arg]
-            if (element != null) {
-                stack.add(element)
-                return
-            }
+            stack.add(parent.value[arg] ?: LNull)
+            return
         }
         if (parent is LString && size == 1) {
             val arg = arguments.first()
@@ -310,7 +343,7 @@ public class ExecutionContext(
         val size: Int = immediate and 0xff
 
         val arguments = List(size) { popStack() }.reversed()
-        val function = scope.get(source.sConst(nameConst))
+        val function = scope.get(code.sConst(nameConst))
         invocation(null, function, arguments)
     }
 
@@ -320,7 +353,7 @@ public class ExecutionContext(
 
         val arguments = List(size) { popStack() }.reversed()
         val parent = popStack()
-        val function = access.runtime.getMember(parent, source.sConst(nameConst)) ?: LNull
+        val function = runtime.getMember(parent, code.sConst(nameConst)) ?: LNull
         invocation(parent, function, arguments)
     }
 
@@ -328,27 +361,24 @@ public class ExecutionContext(
         val catchLabel: Int = immediate shr 12
         val endLabel: Int = immediate and 0xfff
 
-        exceptionHandlers.add(ExceptionHandler(
-            stack.size,
-            node.findJump(catchLabel)?.at ?: error("Catch Label $catchLabel was not found."),
-            node.findJump(endLabel)?.at ?: error("End Label $catchLabel was not found."),
-        ))
-    }
-
-    private fun handlePushLoopHandling(immediate: Int) {
-        val breakLabel: Int = immediate shr 12
-        val continueLabel: Int = immediate and 0xfff
-
-        loopHandlers.add(LoopHandler(
-            stack.size,
-            node.findJump(breakLabel)?.at ?: error("Break Label $breakLabel was not found."),
-            node.findJump(continueLabel)?.at ?: error("Continue Label $continueLabel was not found."),
-        ))
+        exceptionHandlers.add(
+            ExceptionHandler(
+                stack.size,
+                node.findJump(catchLabel)?.at ?: throw MalformedBytecodeException(
+                    "Tried to compute value of exception handling's catch label $catchLabel which wasn't defined.",
+                    control.stackTrace()
+                ),
+                node.findJump(endLabel)?.at ?: throw MalformedBytecodeException(
+                    "Tried to compute value of exception handling's end label $endLabel which wasn't defined.",
+                    control.stackTrace()
+                ),
+            )
+        )
     }
 
     private fun handleSetMemberProperty(nameConst: Int) {
         val value = popStack()
-        val s = source.sConst(nameConst)
+        val s = code.sConst(nameConst)
         val parent = popStack()
         if (parent is LObject) {
             parent.value[LString(s)] = value
@@ -375,7 +405,7 @@ public class ExecutionContext(
         TODO("Not yet implemented: SetSubscript -> $parent$arguments = $value")
     }
 
-    private fun handleBinaryAddOperation() {
+    private fun handleAddOperation() {
         val right = popStack()
         val left = popStack()
         if (left is LString || right is LString) {
@@ -390,26 +420,20 @@ public class ExecutionContext(
             stack.add(left + right)
             return
         }
-        throw LeanUnsupportedOperationException("add", left.type.toString(), right.type.toString())
+        stack.add(runtime.customAddOperation(control, left, right))
     }
 
-    private fun handleBinaryDivideOperation() {
+    private fun handleDivideOperation() {
         val right = popStack()
         val left = popStack()
         if (left is LNumber && right is LNumber) {
             stack.add(left / right)
             return
         }
-        throw LeanUnsupportedOperationException("divide", left.type.toString(), right.type.toString())
+        stack.add(runtime.customDivideOperation(control, left, right))
     }
 
-    private fun handleBinaryEqualsOperation() {
-        val right = popStack()
-        val left = popStack()
-        stack.add(LAny.ofBoolean(right == left))
-    }
-
-    private fun handleBinaryMultiplyOperation() {
+    private fun handleMultiplyOperation() {
         val right = popStack()
         val left = popStack()
         if (left is LString && right is LInteger) {
@@ -419,130 +443,90 @@ public class ExecutionContext(
             stack.add(left * right)
             return
         }
-        throw LeanUnsupportedOperationException("multiply", left.type.toString(), right.type.toString())
+        stack.add(runtime.customMultiplyOperation(control, left, right))
     }
 
-    private fun handleBinaryNotEqualsOperation() {
-        val right = popStack()
-        val left = popStack()
-        stack.add(LAny.ofBoolean(right != left))
-    }
-
-    private fun handleBinaryRangeOperation() {
+    private fun handleRangeOperation() {
         val right = popStack()
         val left = popStack()
         if (left is LInteger && right is LInteger) {
             stack.add(left..right)
             return
         }
-        throw LeanUnsupportedOperationException("range", left.type.toString(), right.type.toString())
+        stack.add(runtime.customRangeOperation(control, left, right))
     }
 
-    private fun handleBinaryRemainingOperation() {
+    private fun handleRemainingOperation() {
         val right = popStack()
         val left = popStack()
         if (left is LNumber && right is LNumber) {
             stack.add(left % right)
             return
         }
-        throw LeanUnsupportedOperationException("remaining", left.type.toString(), right.type.toString())
+        stack.add(runtime.customRemainingOperation(control, left, right))
     }
 
-    private fun handleBinarySubtractOperation() {
+    private fun handleSubtractOperation() {
         val right = popStack()
         val left = popStack()
         if (left is LNumber && right is LNumber) {
             stack.add(left - right)
             return
         }
-        throw LeanUnsupportedOperationException("subtract", left.type.toString(), right.type.toString())
+        stack.add(runtime.customSubtractOperation(control, left, right))
     }
 
-    private fun handleBinaryComparison(comparison: (Int) -> Boolean) {
+    private fun handleComparison(comparison: Comparison) {
         val right = popStack()
         val left = popStack()
         if (left is LString && right is LString) {
-            stack.add(LAny.ofBoolean(comparison(left.value.compareTo(right.value))))
+            stack.add(LBoolean.of(comparison.block(left.value.compareTo(right.value))))
             return
         }
         if (left is LNumber && right is LNumber) {
-            stack.add(LAny.ofBoolean(comparison(left.compareTo(right))))
+            stack.add(LBoolean.of(comparison.block(left.compareTo(right))))
             return
         }
-        throw LeanUnsupportedOperationException("comparison", left.type.toString(), right.type.toString())
+        stack.add(runtime.customComparison(control, comparison, left, right))
     }
 
-    private fun handleBinaryInOperation() {
+    private fun handleInOperation() {
         val right = popStack()
         val left = popStack()
         if (right is LArray) {
-            stack.add(LAny.ofBoolean(left in right.value))
+            stack.add(LBoolean.of(left in right.value))
             return
         }
         if (right is LObject) {
-            stack.add(LAny.ofBoolean(left in right.value))
+            stack.add(LBoolean.of(left in right.value))
             return
         }
-        throw LeanUnsupportedOperationException("in", left.type.toString(), right.type.toString())
+        stack.add(LBoolean.of(runtime.customInOperation(control, left, right)))
     }
 
-    private fun handleUnaryNegativeOperation() {
+    private fun handleNegativeOperation() {
         val target = popStack()
         if (target is LNumber) {
             stack.add(-target)
             return
         }
-        throw LeanUnsupportedOperationException("negative", target.type.toString())
+        stack.add(runtime.customNegativeOperation(control, target))
     }
 
-    private fun handleUnaryNotOperation() {
-        stack.add(LAny.ofBoolean(!popStack().truth()))
-    }
-
-    private fun handleUnaryPositiveOperation() {
+    private fun handlePositiveOperation() {
         val target = popStack()
         if (target is LNumber) {
             stack.add(+target)
             return
         }
-        throw LeanUnsupportedOperationException("positive", target.type.toString())
-    }
-
-    private fun handleUnaryTruthOperation() {
-        stack.add(LAny.ofBoolean(popStack().truth()))
+        stack.add(runtime.customPositiveOperation(control, target))
     }
 
     private fun invocation(thisValue: LAny?, function: LAny, args: List<LAny>) {
-        when (function) {
-            is LNativeFunction -> {
-                try {
-                    stack.add(function.block(thisValue, args))
-                } catch (e: Exception) {
-                    val stackTrace = listOf(StackTrace(function.name ?: "<anonymous function>")) + access.stackTrace()
-                    onThrow(
-                        when (e) {
-                            is LAnyException -> e.value
-//                            is LeanNativeException -> Exceptions.toObject(e, stackTrace)
-                            else -> Exceptions.fromNative(e, stackTrace)
-                        }
-                    )
-                }
-            }
-            is LCompiledFunction -> {
-                val layer = FunctionSetupContext(access, function, thisValue, args)
-                access.push(layer)
-                layer.step()
-            }
-            else -> {
-                onThrow(Exceptions.notAFunction(function.type.toString(), access.stackTrace()))
-            }
+        if (function is LFunction) {
+            control.push(function.setupContext(control, thisValue, args, runtime))
+            return
         }
-    }
-
-    private companion object {
-        private val GT: (Int) -> Boolean = { it > 0 }
-        private val GTE: (Int) -> Boolean = { it >= 0 }
-        private val LT: (Int) -> Boolean = { it < 0 }
-        private val LTE: (Int) -> Boolean = { it <= 0 }
+        runtime.customInvocation(control, thisValue, function, args)
     }
 }

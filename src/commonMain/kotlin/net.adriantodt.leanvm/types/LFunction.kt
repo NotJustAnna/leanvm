@@ -1,17 +1,39 @@
 package net.adriantodt.leanvm.types
 
-public sealed class LFunction : LAny() {
-    override val type: LType = LType.FUNCTION
+import net.adriantodt.leanvm.LeanMachine
+import net.adriantodt.leanvm.context.LeanContext
+import net.adriantodt.leanvm.context.LeanMachineControl
+import net.adriantodt.leanvm.context.LeanRuntime
+
+public abstract class LFunction : LAny() {
+    override val type: String get() = "function"
 
     override fun truth(): Boolean {
         return true
     }
 
-    public open operator fun invoke(vararg args: LAny): LAny {
-        return call(null, args.toList())
+    public operator fun invoke(vararg args: LAny): LAny {
+        return createVM(null, args.toList()).run().getOrThrow()
     }
 
-    public abstract fun call(thisValue: LAny?, args: List<LAny>): LAny
+    public operator fun LAny?.invoke(vararg args: LAny): LAny {
+        return createVM(this, args.toList()).run().getOrThrow()
+    }
+
+    public fun call(thisValue: LAny?, args: List<LAny>): LAny {
+        return createVM(thisValue, args).run().getOrThrow()
+    }
+
+    public fun createVM(thisValue: LAny?, args: List<LAny>): LeanMachine {
+        return LeanMachine { setupContext(it, thisValue, args) }
+    }
+
+    public abstract fun setupContext(
+        control: LeanMachineControl,
+        thisValue: LAny?,
+        args: List<LAny>,
+        runtime: LeanRuntime? = null,
+    ): LeanContext
 
     public abstract val name: String?
 

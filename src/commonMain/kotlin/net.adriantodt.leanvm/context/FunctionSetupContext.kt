@@ -1,32 +1,26 @@
 package net.adriantodt.leanvm.context
 
+import net.adriantodt.leanvm.LAnyException
 import net.adriantodt.leanvm.Scope
 import net.adriantodt.leanvm.StackTrace
 import net.adriantodt.leanvm.bytecode.LeanNode
+import net.adriantodt.leanvm.exceptions.old.Exceptions
 import net.adriantodt.leanvm.types.LAny
 import net.adriantodt.leanvm.types.LCompiledFunction
 
 public class FunctionSetupContext(
-    private val access: LeanMachineAccess,
+    private val control: LeanMachineControl,
     private val function: LCompiledFunction,
+    override val runtime: LeanRuntime,
     private val thisValue: LAny? = null,
     arguments: List<LAny>,
 ) : LeanContext {
-    private val body: LeanNode
-    private val scope: Scope
-
-    private val paramCount: Int
+    private val body: LeanNode = function.source.node(function.data.bodyId)
+    private val scope: Scope = Scope(function.rootScope)
+    private val paramCount: Int = function.data.paramCount
     private var paramNext: Int = 0
-    private val argsLeft: MutableList<LAny>
-
+    private val argsLeft: MutableList<LAny> = arguments.toMutableList()
     private var resolvedParamName: String? = null
-
-    init {
-        body = function.source.node(function.data.bodyId)
-        scope = Scope(function.rootScope)
-        paramCount = function.data.paramCount
-        argsLeft = arguments.toMutableList()
-    }
 
     override fun step() {
         while (paramNext < paramCount) {
@@ -45,12 +39,13 @@ public class FunctionSetupContext(
                 val paramBody = function.source.node(parameter.defaultValueNodeId)
                 resolvedParamName = paramName
                 scope.define(paramName, true)
-                access.push(
-                    ExecutionContext(
-                        access,
-                        scope,
+                control.push(
+                    NodeExecutionContext(
+                        control,
                         function.source,
+                        scope,
                         function.name ?: "<anonymous function>",
+                        runtime,
                         paramBody,
                         thisValue
                     )
@@ -58,16 +53,17 @@ public class FunctionSetupContext(
                 return
             }
 
-            access.runtime.mismatchedArgs(access)
-            return
+            // TODO Throw actually useful exception
+            throw LAnyException(Exceptions.mismatchedArgs(control.stackTrace()))
         }
 
-        access.replace(
-            ExecutionContext(
-                access,
-                Scope(scope),
+        control.replace(
+            NodeExecutionContext(
+                control,
                 function.source,
+                Scope(scope),
                 function.name ?: "<anonymous function>",
+                runtime,
                 body,
                 thisValue
             )
@@ -80,7 +76,7 @@ public class FunctionSetupContext(
     }
 
     override fun onThrow(value: LAny) {
-        access.onThrow(value) // Keep cascading.
+        control.onThrow(value) // Keep cascading.
     }
 
     override fun trace(): StackTrace? {
