@@ -1,7 +1,7 @@
 package net.notjustanna.leanvm.types
 
 public data class LInteger(val value: Long) : LNumber() {
-    override val type: LType = LType.INTEGER
+    override val type: String get() = "integer"
 
     override fun compareTo(other: LNumber): Int {
         return when (other) {

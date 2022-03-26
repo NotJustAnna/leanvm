@@ -1,7 +1,7 @@
 package net.notjustanna.leanvm.types
 
 public data class LObject(val value: MutableMap<LAny, LAny> = mutableMapOf()) : LAny() {
-    override val type: LType = LType.OBJECT
+    override val type: String get() = "object"
 
     public constructor(vararg pairs: Pair<LAny, LAny>) : this(pairs.toMap(mutableMapOf()))
 

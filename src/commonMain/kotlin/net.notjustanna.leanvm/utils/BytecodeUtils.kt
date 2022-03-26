@@ -1,6 +1,6 @@
 package net.notjustanna.leanvm.utils
 
-import net.notjustanna.leanvm.exceptions.IntegerOutOfBoundsException
+import net.notjustanna.leanvm.exceptions.old.IntegerOutOfBoundsException
 import okio.Buffer
 
 private const val bit24th = 0x800000
@@ -10,12 +10,12 @@ internal const val maxU24 = 0xFFFFFF
 internal const val maxI24 = 0x7FFFFF
 internal const val minI24 = -0x800000
 
-internal val Int.isU24 get() = this !in 0..maxU24
+internal val Int.isU24 get() = this in 0..maxU24
 
-internal val Int.isU8 get() = this !in 0..0xFF
+internal val Int.isU8 get() = this in 0..0xFF
 
 internal inline fun Int.requireU24(field: String): Int {
-    if (isU24) {
+    if (!isU24) {
         throw IntegerOutOfBoundsException("Field $field is outside of U24 bounds ($this !in 0..0xFFFFFF)")
     }
     return this
@@ -43,7 +43,7 @@ internal inline fun Int.requireU12(field: String): Int {
 }
 
 internal inline fun Int.requireU8(field: String): Int {
-    if (isU8) {
+    if (!isU8) {
         throw IntegerOutOfBoundsException("Field $field is outside of U8 bounds ($this !in 0..0xFF)")
     }
     return this
@@ -68,7 +68,7 @@ internal inline fun Buffer.readU16(): Int {
 
 internal inline fun Buffer.readI24(): Int {
     val u = readU24()
-    return if (u and bit24th == bit24th) u or i24Mask else u
+    return if (u and bit24th != 0) u or i24Mask else u
 }
 
 // internal inline fun Buffer.readNU24(): Int {
@@ -86,4 +86,4 @@ internal inline fun Buffer.writeU12Pair(first: Int, second: Int) {
     writeU24((first ushr 12) or (second and 0xFFF))
 }
 
-internal inline fun Buffer.skipByte(): Buffer = apply { readByte() }
+internal inline fun Buffer.skipByte(): Buffer = apply { skip(1) }

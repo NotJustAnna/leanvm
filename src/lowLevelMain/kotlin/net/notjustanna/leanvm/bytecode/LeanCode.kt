@@ -1,11 +1,6 @@
 package net.notjustanna.leanvm.bytecode
 
-import net.notjustanna.leanvm.utils.isU24
-import net.notjustanna.leanvm.utils.maxU24
-import net.notjustanna.leanvm.utils.readU24
-import net.notjustanna.leanvm.utils.writeU24
-import net.notjustanna.leanvm.utils.Deserializer
-import net.notjustanna.leanvm.utils.Serializable
+import net.notjustanna.leanvm.utils.*
 import okio.Buffer
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
@@ -122,6 +117,10 @@ public actual class LeanCode(
         for (node in nodeData) buffer.write(node)
     }
 
+    override fun toString(): String {
+        return "LeanCode[$lCount long consts, $sCount string consts, $sectCount sects, $nodeCount nodes]"
+    }
+
     public actual companion object : Deserializer<LeanCode> {
         public actual fun create(
             lConstArr: List<Long>,
@@ -136,7 +135,7 @@ public actual class LeanCode(
                 funcArr.map { it.toBytes() }.toTypedArray(),
                 sectArr.size,
                 Buffer().apply { sectArr.forEach { it.serializeTo(this) } }.snapshot(),
-                funcArr.map { it.toBytes() }.toTypedArray(),
+                nodeArr.map { it.toBytes() }.toTypedArray(),
             )
         }
 
@@ -149,7 +148,5 @@ public actual class LeanCode(
             val nodeData = Array(buffer.readInt()) { buffer.readByteString(LeanNode.determineByteSize(buffer)) }
             return LeanCode(lConstArr, sConstArr, funcData, sectCount, sectData, nodeData)
         }
-
     }
-
 }

@@ -1,7 +1,7 @@
 package net.notjustanna.leanvm.types
 
 public object LNull : LAny() {
-    override val type: LType = LType.NULL
+    override val type: String get() = "null"
 
     override fun truth(): Boolean {
         return false

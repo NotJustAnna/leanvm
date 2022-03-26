@@ -1,7 +1,7 @@
 package net.notjustanna.leanvm.types
 
 public data class LDecimal(val value: Double) : LNumber() {
-    override val type: LType = LType.DECIMAL
+    override val type: String get() = "decimal"
 
     override fun compareTo(other: LNumber): Int {
         return when (other) {

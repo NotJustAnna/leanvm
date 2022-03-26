@@ -1,4 +1,4 @@
-package net.notjustanna.leanvm.exceptions
+package net.notjustanna.leanvm.exceptions.old
 
 import net.notjustanna.leanvm.StackTrace
 import net.notjustanna.leanvm.types.LAny
