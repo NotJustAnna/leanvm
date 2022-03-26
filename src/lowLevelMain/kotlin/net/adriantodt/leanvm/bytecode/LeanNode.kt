@@ -1,10 +1,6 @@
 package net.adriantodt.leanvm.bytecode
 
-import net.adriantodt.leanvm.utils.isU24
-import net.adriantodt.leanvm.utils.readU24
-import net.adriantodt.leanvm.utils.writeU24
-import net.adriantodt.leanvm.utils.Deserializer
-import net.adriantodt.leanvm.utils.Serializable
+import net.adriantodt.leanvm.utils.*
 import okio.Buffer
 import okio.ByteString
 
@@ -110,6 +106,10 @@ public actual class LeanNode(
             .write(sectData)
     }
 
+    override fun toString(): String {
+        return "LeanNode[$insnCount insns, $jumpCount jumps, $sectCount sects]"
+    }
+
     public actual companion object : Deserializer<LeanNode> {
         public actual fun create(
             insnArr: List<LeanInsn>,
@@ -151,7 +151,8 @@ public actual class LeanNode(
             val sectCount = buffer.readInt()
             buffer.skip(sectCount.toLong() * LeanSectLabel.SIZE_BYTES)
 
-            return insnCount.toLong() * LeanInsn.SIZE_BYTES +
+            return Int.SIZE_BYTES * 2 + 3 +
+                insnCount.toLong() * LeanInsn.SIZE_BYTES +
                 jumpCount * LeanJumpLabel.SIZE_BYTES +
                 sectCount * LeanSectLabel.SIZE_BYTES
         }

@@ -1,7 +1,7 @@
 package net.adriantodt.leanvm
 
-import net.adriantodt.leanvm.context.LeanContext
-import net.adriantodt.leanvm.context.LeanMachineControl
+import net.adriantodt.leanvm.ctx.LeanContext
+import net.adriantodt.leanvm.ctx.LeanMachineControl
 import net.adriantodt.leanvm.types.LAny
 
 public class LeanMachine(initializer: (LeanMachineControl) -> LeanContext) {
