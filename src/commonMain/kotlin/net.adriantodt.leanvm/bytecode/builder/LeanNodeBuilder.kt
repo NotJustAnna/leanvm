@@ -3,8 +3,6 @@ package net.adriantodt.leanvm.bytecode.builder
 import net.adriantodt.leanvm.bytecode.*
 import net.adriantodt.leanvm.bytecode.LeanInsn.Opcode.*
 import net.adriantodt.leanvm.bytecode.LeanInsn.ParameterlessCode.*
-import net.adriantodt.leanvm.utils.BinaryOperationType
-import net.adriantodt.leanvm.utils.UnaryOperationType
 
 public class LeanNodeBuilder(private val parent: LeanCodeBuilder, public val nodeId: Int) {
     private val insnArr = mutableListOf<LeanInsn>()
@@ -205,24 +203,6 @@ public class LeanNodeBuilder(private val parent: LeanCodeBuilder, public val nod
     }
 
     /**
-     * Breaks a loop.
-     *
-     * Stack Inputs: ()
-     */
-    public fun breakInsn() {
-        insnArr += LeanInsn.parameterless(BREAK)
-    }
-
-    /**
-     * Continues a loop.
-     *
-     * Stack Inputs: ()
-     */
-    public fun continueInsn() {
-        insnArr += LeanInsn.parameterless(CONTINUE)
-    }
-
-    /**
      * Throws the object from the top of the stack.
      *
      * Stack Inputs: (value)
@@ -260,36 +240,72 @@ public class LeanNodeBuilder(private val parent: LeanCodeBuilder, public val nod
         insnArr += LeanInsn.simple(BRANCH_IF_TRUE, labelCode)
     }
 
-    public fun unaryOperationInsn(operator: UnaryOperationType) {
-        insnArr += LeanInsn.parameterless(
-            when (operator) {
-                UnaryOperationType.POSITIVE -> UNARY_POSITIVE
-                UnaryOperationType.NEGATIVE -> UNARY_NEGATIVE
-                UnaryOperationType.NOT -> UNARY_NOT
-                UnaryOperationType.TRUTH -> UNARY_TRUTH
-            }
-        )
+    public fun positiveInsn() {
+        insnArr += LeanInsn.parameterless(POSITIVE)
     }
 
-    public fun binaryOperationInsn(operator: BinaryOperationType) {
-        insnArr += LeanInsn.parameterless(
-            when (operator) {
-                BinaryOperationType.ADD -> BINARY_ADD
-                BinaryOperationType.SUBTRACT -> BINARY_SUBTRACT
-                BinaryOperationType.MULTIPLY -> BINARY_MULTIPLY
-                BinaryOperationType.DIVIDE -> BINARY_DIVIDE
-                BinaryOperationType.REMAINING -> BINARY_REMAINING
-                BinaryOperationType.EQUALS -> BINARY_EQUALS
-                BinaryOperationType.NOT_EQUALS -> BINARY_NOT_EQUALS
-                BinaryOperationType.LT -> BINARY_LT
-                BinaryOperationType.LTE -> BINARY_LTE
-                BinaryOperationType.GT -> BINARY_GT
-                BinaryOperationType.GTE -> BINARY_GTE
-                BinaryOperationType.IN -> BINARY_IN
-                BinaryOperationType.RANGE -> BINARY_RANGE
-                else -> throw RuntimeException("The operator $operator can't be converted to a instruction and must be de-sugared.")
-            }
-        )
+    public fun negativeInsn() {
+        insnArr += LeanInsn.parameterless(NEGATIVE)
+    }
+
+    public fun notInsn() {
+        insnArr += LeanInsn.parameterless(NOT)
+    }
+
+    public fun truthInsn() {
+        insnArr += LeanInsn.parameterless(TRUTH)
+    }
+
+    public fun addInsn() {
+        insnArr += LeanInsn.parameterless(ADD)
+    }
+
+    public fun subtractInsn() {
+        insnArr += LeanInsn.parameterless(SUBTRACT)
+    }
+
+    public fun multiplyInsn() {
+        insnArr += LeanInsn.parameterless(MULTIPLY)
+    }
+
+    public fun divideInsn() {
+        insnArr += LeanInsn.parameterless(DIVIDE)
+    }
+
+    public fun remainingInsn() {
+        insnArr += LeanInsn.parameterless(REMAINING)
+    }
+
+    public fun equalsInsn() {
+        insnArr += LeanInsn.parameterless(EQUALS)
+    }
+
+    public fun notEqualsInsn() {
+        insnArr += LeanInsn.parameterless(NOT_EQUALS)
+    }
+
+    public fun ltInsn() {
+        insnArr += LeanInsn.parameterless(LT)
+    }
+
+    public fun lteInsn() {
+        insnArr += LeanInsn.parameterless(LTE)
+    }
+
+    public fun gtInsn() {
+        insnArr += LeanInsn.parameterless(GT)
+    }
+
+    public fun gteInsn() {
+        insnArr += LeanInsn.parameterless(GTE)
+    }
+
+    public fun inInsn() {
+        insnArr += LeanInsn.parameterless(IN)
+    }
+
+    public fun rangeInsn() {
+        insnArr += LeanInsn.parameterless(RANGE)
     }
 
     public fun declareVariableInsn(name: String, mutable: Boolean) {
@@ -366,14 +382,6 @@ public class LeanNodeBuilder(private val parent: LeanCodeBuilder, public val nod
         insnArr += LeanInsn.parameterless(POP_EXCEPTION_HANDLING)
     }
 
-    public fun pushLoopHandlingInsn(continueLabel: Int, breakLabel: Int) {
-        insnArr += LeanInsn.double(PUSH_LOOP_HANDLING, continueLabel, breakLabel)
-    }
-
-    public fun popLoopHandlingInsn() {
-        insnArr += LeanInsn.parameterless(POP_LOOP_HANDLING)
-    }
-
     /**
      * Marks a label.
      *
@@ -410,15 +418,6 @@ public class LeanNodeBuilder(private val parent: LeanCodeBuilder, public val nod
     }
 
     /**
-     * Automatically pushes/pops the required loop handlers.
-     */
-    public inline fun withLoopHandling(continueLabel: Int, breakLabel: Int, block: () -> Unit) {
-        pushLoopHandlingInsn(continueLabel, breakLabel)
-        block()
-        popLoopHandlingInsn()
-    }
-
-    /**
      * Automatically pushes/pops the required scope instructions.
      */
     public inline fun withScope(block: () -> Unit) {
@@ -441,7 +440,7 @@ public class LeanNodeBuilder(private val parent: LeanCodeBuilder, public val nod
             println("This should not have happened.")
             generateSectionLabel(sectStack.last())
         }
-        return LeanNode.create(insnArr.toList(), jumpArr.toList(), sectArr.toList())
+        return LeanNode.create(insnArr.toList(), jumpArr.sorted(), sectArr.sorted())
     }
 
     public companion object {

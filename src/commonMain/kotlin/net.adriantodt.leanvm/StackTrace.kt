@@ -7,8 +7,11 @@ public data class StackTrace(
     val column: Int = -1
 ) {
     override fun toString(): String {
-        if (sourceName == null && line == -1 && column == -1) {
-            return "$functionName[Platform]"
+        if (line == -1 && column == -1) {
+            if (sourceName == null) {
+                return "$functionName[Platform]"
+            }
+            return "$functionName($sourceName)"
         }
         return "$functionName($sourceName:$line:$column)"
     }

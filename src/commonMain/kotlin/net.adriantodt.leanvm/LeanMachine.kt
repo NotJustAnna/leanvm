@@ -1,18 +1,27 @@
 package net.adriantodt.leanvm
 
 import net.adriantodt.leanvm.context.LeanContext
-import net.adriantodt.leanvm.context.LeanMachineAccess
-import net.adriantodt.leanvm.context.LeanRuntime
+import net.adriantodt.leanvm.context.LeanMachineControl
 import net.adriantodt.leanvm.types.LAny
 
-public class LeanMachine(runtime: LeanRuntime = LeanRuntime(), initializer: (LeanMachineAccess) -> LeanContext) {
+public class LeanMachine(initializer: (LeanMachineControl) -> LeanContext) {
     private val stack = mutableListOf<LeanContext>()
-    private var current: LeanContext = initializer(Access(runtime))
+    private val control: LeanMachineControl = Control()
+    private var current: LeanContext = initializer(control)
     private var result: LeanResult? = null
 
     public fun run(): LeanResult {
         while (hasNextStep()) {
-            step()
+            try {
+                step()
+            } catch (e: Exception) {
+                control.onThrow(
+                    when (e) {
+                        is LAnyException -> e.value
+                        else -> current.runtime.handleJavaException(control, e)
+                    }
+                )
+            }
         }
         return result()
     }
@@ -29,7 +38,7 @@ public class LeanMachine(runtime: LeanRuntime = LeanRuntime(), initializer: (Lea
         return result ?: throw RuntimeException("Execution not finished")
     }
 
-    private inner class Access(override val runtime: LeanRuntime) : LeanMachineAccess {
+    public inner class Control : LeanMachineControl {
         override fun push(layer: LeanContext) {
             stack += current
             current = layer

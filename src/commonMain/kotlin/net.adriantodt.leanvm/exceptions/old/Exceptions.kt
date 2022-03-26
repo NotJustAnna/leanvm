@@ -1,4 +1,4 @@
-package net.adriantodt.leanvm.exceptions
+package net.adriantodt.leanvm.exceptions.old
 
 import net.adriantodt.leanvm.StackTrace
 import net.adriantodt.leanvm.types.LAny
