@@ -12,7 +12,7 @@ jobs:
       matrix:
         # Use these Java versions
         java: [ 17 ]
-        # and run on Linux, Windows and MacOS
+        # and run on Linux, Windows and macOS
         os: [ ubuntu-20.04, windows-latest, macos-11 ]
     runs-on: ${{ matrix.os }}
     steps:

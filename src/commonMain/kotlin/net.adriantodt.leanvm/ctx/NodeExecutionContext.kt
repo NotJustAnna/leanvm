@@ -99,7 +99,7 @@ public class NodeExecutionContext(
                     onThrow(popStack())
                 }
                 ParameterlessCode.TYPEOF -> {
-                    stack.add(LString(popStack().type.toString()))
+                    stack.add(LString(popStack().type))
                 }
                 ParameterlessCode.PUSH_TRUE -> {
                     stack.add(LBoolean.True)

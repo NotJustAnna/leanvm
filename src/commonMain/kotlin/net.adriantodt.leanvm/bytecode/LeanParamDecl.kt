@@ -10,8 +10,6 @@ public data class LeanParamDecl(val nameConst: Int, val defaultValueNodeId: Int)
     }
 
     public companion object : Deserializer<LeanParamDecl> {
-        public const val SIZE_BYTES: Int = Int.SIZE_BYTES * 2
-
         override fun deserializeFrom(buffer: Buffer): LeanParamDecl {
             return LeanParamDecl(buffer.readInt(), buffer.readInt())
         }
