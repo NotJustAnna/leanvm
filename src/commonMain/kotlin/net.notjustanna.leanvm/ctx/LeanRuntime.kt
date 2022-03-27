@@ -5,20 +5,29 @@ import net.notjustanna.leanvm.types.LAny
 import net.notjustanna.leanvm.types.LNull
 import net.notjustanna.leanvm.utils.Comparison
 
+/**
+ * The runtime context for the LeanVM virtual machine.
+ *
+ * This class can be used to customize the behavior of the virtual machine.
+ */
 public open class LeanRuntime {
 
-    public open fun getMember(target: LAny, name: String): LAny? {
-        return null
+    public open fun getMemberProperty(control: LeanMachineControl, target: LAny, name: String): LAny {
+        TODO("Not yet implemented")
+    }
+
+    public open fun setMemberProperty(control: LeanMachineControl, parent: LAny, name: String, value: LAny) {
+        TODO("Not yet implemented")
     }
 
     /**
-     * This method receives is called when the Lean Machine receives a Java-land exception and needs to convert the
+     * This method receives is called when the Lean Machine receives a platform exception and needs to convert the
      * exception to a Lean-land object.
      *
      * **WARNING**: This happens outside the main try-catch. Any exceptions thrown here will land **outside**
      * the Lean machine's scope, into the user's code.
      */
-    public open fun handleJavaException(control: LeanMachineControl, e: Exception): LAny {
+    public open fun handlePlatformException(control: LeanMachineControl, exception: Exception): LAny {
         TODO("Not yet implemented")
     }
 
@@ -32,16 +41,43 @@ public open class LeanRuntime {
     }
 
     /**
-     * This function is called when an invocation is attempted on an object which is not a function.
+     * This method is called when a subscript get is attempted on a value which is not an array, object, or string.
+     *
+     * By default, this method throws an exception, but it can be overridden to add in custom behavior.
+     */
+    public open fun customGetSubscript(control: LeanMachineControl, parent: LAny, arguments: List<LAny>): LAny {
+        throw LeanUnsupportedOperationException(
+            "The 'subscript get' operation is not supported for '${parent}' (of type '${parent.type}').",
+            control.stackTrace()
+        )
+    }
+
+    /**
+     * This method is called when a subscript set is attempted on a value which is not an array, object, or string.
+     *
+     * By default, this method throws an exception, but it can be overridden to add in custom behavior.
+     */
+    public open fun customSetSubscript(control: LeanMachineControl, parent: LAny, arguments: List<LAny>, value: LAny) {
+        throw LeanUnsupportedOperationException(
+            "The 'subscript set' operation is not supported for '${parent}' (of type '${parent.type}').",
+            control.stackTrace()
+        )
+    }
+
+    /**
+     * This method is called when an invocation is attempted on a value which is not a function.
      *
      * By default, this method throws an exception, but it can be overridden to add in custom behavior.
      */
     public fun customInvocation(control: LeanMachineControl, thisValue: LAny?, function: LAny, args: List<LAny>) {
-        TODO("Not yet implemented")
+        throw LeanUnsupportedOperationException(
+            "Invocation is not supported for '${function}' (of type '${function.type}').",
+            control.stackTrace()
+        )
     }
 
     /**
-     * This function is called when an addiction is attempted on an unsupported pair.
+     * This method is called when an addiction is attempted on an unsupported pair of values.
      *
      * By default, this method throws an exception, but it can be overridden to add in custom behavior.
      */
@@ -53,7 +89,7 @@ public open class LeanRuntime {
     }
 
     /**
-     * This function is called when a division is attempted on an unsupported pair.
+     * This method is called when a division is attempted on an unsupported pair of values.
      *
      * By default, this method throws an exception, but it can be overridden to add in custom behavior.
      */
@@ -65,7 +101,7 @@ public open class LeanRuntime {
     }
 
     /**
-     * This function is called when a multiplication is attempted on an unsupported pair.
+     * This method is called when a multiplication is attempted on an unsupported pair of values.
      *
      * By default, this method throws an exception, but it can be overridden to add in custom behavior.
      */
@@ -77,7 +113,7 @@ public open class LeanRuntime {
     }
 
     /**
-     * This function is called when a range is attempted on an unsupported pair.
+     * This method is called when a range is attempted on an unsupported pair of values.
      *
      * By default, this method throws an exception, but it can be overridden to add in custom behavior.
      */
@@ -89,7 +125,7 @@ public open class LeanRuntime {
     }
 
     /**
-     * This function is called when a modulo is attempted on an unsupported pair.
+     * This method is called when a modulo is attempted on an unsupported pair of values.
      *
      * By default, this method throws an exception, but it can be overridden to add in custom behavior.
      */
@@ -101,7 +137,7 @@ public open class LeanRuntime {
     }
 
     /**
-     * This function is called when a subtraction is attempted on an unsupported pair.
+     * This method is called when a subtraction is attempted on an unsupported pair of values.
      *
      * By default, this method throws an exception, but it can be overridden to add in custom behavior.
      */
@@ -113,7 +149,7 @@ public open class LeanRuntime {
     }
 
     /**
-     * This function is called when a comparison than is attempted on an unsupported pair.
+     * This method is called when a comparison than is attempted on an unsupported pair of values.
      *
      * By default, this method throws an exception, but it can be overridden to add in custom behavior.
      */
@@ -125,7 +161,7 @@ public open class LeanRuntime {
     }
 
     /**
-     * This function is called when a 'in' is attempted on an unsupported pair.
+     * This method is called when a 'in' is attempted on an unsupported pair of values.
      *
      * By default, this method throws an exception, but it can be overridden to add in custom behavior.
      */
@@ -137,7 +173,7 @@ public open class LeanRuntime {
     }
 
     /**
-     * This function is called when a negation is attempted on an unsupported target.
+     * This method is called when a negation is attempted on an unsupported target.
      *
      * By default, this method throws an exception, but it can be overridden to add in custom behavior.
      */
@@ -149,7 +185,7 @@ public open class LeanRuntime {
     }
 
     /**
-     * This function is called when a positive is attempted on an unsupported target.
+     * This method is called when a positive is attempted on an unsupported target.
      *
      * By default, this method throws an exception, but it can be overridden to add in custom behavior.
      */

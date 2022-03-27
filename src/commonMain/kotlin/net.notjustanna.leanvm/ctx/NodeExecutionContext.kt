@@ -1,15 +1,14 @@
 package net.notjustanna.leanvm.ctx
 
-import net.notjustanna.leanvm.LAnyException
 import net.notjustanna.leanvm.Scope
 import net.notjustanna.leanvm.StackTrace
 import net.notjustanna.leanvm.bytecode.LeanCode
 import net.notjustanna.leanvm.bytecode.LeanInsn.Opcode
 import net.notjustanna.leanvm.bytecode.LeanInsn.ParameterlessCode
 import net.notjustanna.leanvm.bytecode.LeanNode
+import net.notjustanna.leanvm.exceptions.LeanIndexOutOfBoundsException
 import net.notjustanna.leanvm.exceptions.LeanNullPointerException
 import net.notjustanna.leanvm.exceptions.MalformedBytecodeException
-import net.notjustanna.leanvm.exceptions.old.Exceptions
 import net.notjustanna.leanvm.types.*
 import net.notjustanna.leanvm.utils.Comparison
 
@@ -258,13 +257,7 @@ public class NodeExecutionContext(
                 "Tried to access member '$name' of null target.", control.stackTrace()
             )
         }
-        val member = runtime.getMember(target, name)
-        if (member != null) {
-            stack.add(member)
-        }
-
-        // TODO Throw actually useful exception
-        throw LAnyException(Exceptions.noElementExists(name, control.stackTrace()))
+        stack.add(runtime.getMemberProperty(control, target, name))
     }
 
     private fun handleGetSubscript(size: Int) {
@@ -278,21 +271,40 @@ public class NodeExecutionContext(
             if (arg is LInteger) {
                 val index = arg.value
                 if (index < -listSize || index > lastIndex) {
-                    TODO("Error: argument is out of bounds")
+                    throw LeanIndexOutOfBoundsException(
+                        "Tried to access index $index of array with size $listSize.",
+                        control.stackTrace()
+                    )
                 }
 
                 stack.add(list[if (index < 0) listSize + index.toInt() else index.toInt()])
 
                 return
             } else if (arg is LRange) {
-                val start = arg.value.first
-                val end = arg.value.last
+                val range = arg.value
+
+                val start = range.first
+                val end = range.last
                 if (start < -listSize || end < -listSize || start > lastIndex || end > lastIndex) {
-                    TODO("Error: argument is out of bounds")
+                    throw LeanIndexOutOfBoundsException(
+                        "Tried to access range $start..$end of array with size $listSize.",
+                        control.stackTrace()
+                    )
                 }
-                // TODO There's probably a faster way to do this.
-                val select = arg.value.mapTo(mutableListOf()) {
-                    list[if (it < 0) listSize + it.toInt() else it.toInt()]
+
+                if (range.isEmpty()) {
+                    stack.add(LArray())
+                    return
+                }
+
+                if (range.step == 1L) {
+                    stack.add(LArray(list.subList(start.toInt(), end.toInt()).toMutableList()))
+                    return
+                }
+
+                val select = mutableListOf<LAny>()
+                for (i in range) {
+                    select += list[i.toInt()]
                 }
                 stack.add(LArray(select))
                 return
@@ -311,25 +323,46 @@ public class NodeExecutionContext(
             if (arg is LInteger) {
                 val index = arg.value
                 if (index < -length || index > lastIndex) {
-                    TODO("Error: argument is out of bounds")
+                    throw LeanIndexOutOfBoundsException(
+                        "Tried to access index $index of string with size $length.",
+                        control.stackTrace()
+                    )
                 }
                 stack.add(LString(string[if (index < 0) length + index.toInt() else index.toInt()].toString()))
                 return
             } else if (arg is LRange) {
-                val start = arg.value.first
-                val end = arg.value.last
+                val range = arg.value
+
+                val start = range.first
+                val end = range.last
                 if (start < -length || end < -length || start > lastIndex || end > lastIndex) {
-                    TODO("Error: argument is out of bounds")
+                    throw LeanIndexOutOfBoundsException(
+                        "Tried to access range $start..$end of string with size $length.",
+                        control.stackTrace()
+                    )
                 }
-                // TODO There's probably a faster way to do this.
-                val select = arg.value.map {
-                    string[if (it < 0) length + it.toInt() else it.toInt()]
+
+                if (range.isEmpty()) {
+                    stack.add(LString())
+                    return
                 }
-                stack.add(LString(select.toCharArray().concatToString()))
+
+                if (range.step == 1L) {
+                    stack.add(LString(string.substring(start.toInt(), end.toInt())))
+                    return
+                }
+
+                val select = buildString {
+                    for (i in range) {
+                        append(string[i.toInt()])
+                    }
+                }
+                stack.add(LString(select))
                 return
             }
         }
-        TODO("Not yet implemented: GetSubscript -> $parent$arguments")
+
+        stack.add(runtime.customGetSubscript(control, parent, arguments))
     }
 
     private fun handleInvoke(size: Int) {
@@ -353,8 +386,7 @@ public class NodeExecutionContext(
 
         val arguments = List(size) { popStack() }.reversed()
         val parent = popStack()
-        val function = runtime.getMember(parent, code.sConst(nameConst)) ?: LNull
-        invocation(parent, function, arguments)
+        invocation(parent, runtime.getMemberProperty(control, parent, code.sConst(nameConst)), arguments)
     }
 
     private fun handlePushExceptionHandling(immediate: Int) {
@@ -378,12 +410,13 @@ public class NodeExecutionContext(
 
     private fun handleSetMemberProperty(nameConst: Int) {
         val value = popStack()
-        val s = code.sConst(nameConst)
+        val name = code.sConst(nameConst)
         val parent = popStack()
         if (parent is LObject) {
-            parent.value[LString(s)] = value
+            parent.value[LString(name)] = value
         }
-        TODO("Not yet implemented: SetMember $parent.$s = $value")
+
+        runtime.setMemberProperty(control, parent, name, value)
     }
 
     private fun handleSetSubscript(size: Int) {
@@ -402,7 +435,7 @@ public class NodeExecutionContext(
             parent.value[arg] = value
             return
         }
-        TODO("Not yet implemented: SetSubscript -> $parent$arguments = $value")
+        runtime.customSetSubscript(control, parent, arguments, value)
     }
 
     private fun handleAddOperation() {
