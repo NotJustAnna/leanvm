@@ -63,25 +63,22 @@ kotlin {
         val jsMain by getting
         val jsTest by getting
 
-        val lowLevelMain by creating { dependsOn(commonMain) }
-        val lowLevelTest by creating { dependsOn(commonTest) }
+        val jvmMain by getting
+        val jvmTest by getting
 
-        val jvmMain by getting { dependsOn(lowLevelMain) }
-        val jvmTest by getting { dependsOn(lowLevelTest) }
+        // val nativeMain by creating { dependsOn(commonMain) }
+        // val nativeTest by creating { dependsOn(commonTest) }
 
-        val nativeMain by creating { dependsOn(lowLevelMain) }
-        val nativeTest by creating { dependsOn(lowLevelTest) }
-
-        val linuxX64Main by getting { dependsOn(nativeMain) }
-        val linuxX64Test by getting { dependsOn(nativeTest) }
-        // val linuxArm64Main by getting { dependsOn(nativeMain) }
-        // val linuxArm64Test by getting { dependsOn(nativeTest) }
-        val mingwX64Main by getting { dependsOn(nativeMain) }
-        val mingwX64Test by getting { dependsOn(nativeTest) }
-        val macosX64Main by getting { dependsOn(nativeMain) }
-        val macosX64Test by getting { dependsOn(nativeTest) }
-        // val macosArm64Main by getting { dependsOn(nativeMain) }
-        // val macosArm64Test by getting { dependsOn(nativeTest) }
+        val linuxX64Main by getting // { dependsOn(nativeMain) }
+        val linuxX64Test by getting // { dependsOn(nativeTest) }
+        // val linuxArm64Main by getting // { dependsOn(nativeMain) }
+        // val linuxArm64Test by getting // { dependsOn(nativeTest) }
+        val mingwX64Main by getting // { dependsOn(nativeMain) }
+        val mingwX64Test by getting // { dependsOn(nativeTest) }
+        val macosX64Main by getting // { dependsOn(nativeMain) }
+        val macosX64Test by getting // { dependsOn(nativeTest) }
+        // val macosArm64Main by getting // { dependsOn(nativeMain) }
+        // val macosArm64Test by getting // { dependsOn(nativeTest) }
     }
 }
 
