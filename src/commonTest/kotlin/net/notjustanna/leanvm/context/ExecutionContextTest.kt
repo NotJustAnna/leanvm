@@ -1,6 +1,7 @@
-package net.notjustanna.leanvm.ctx
+package net.notjustanna.leanvm.context
 
 import net.notjustanna.leanvm.bytecode.builder.LeanCodeBuilder
+import net.notjustanna.leanvm.ctx.NodeExecutionContext
 import kotlin.test.Test
 import kotlin.test.assertFails
 

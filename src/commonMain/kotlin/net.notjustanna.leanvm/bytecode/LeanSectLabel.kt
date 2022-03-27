@@ -20,11 +20,8 @@ public data class LeanSectLabel(
     }
 
     public companion object : Deserializer<LeanSectLabel> {
-        public const val SIZE_BYTES: Int = Int.SIZE_BYTES * 3
-
         override fun deserializeFrom(buffer: Buffer): LeanSectLabel {
             return LeanSectLabel(buffer.readInt(), buffer.readInt(), buffer.readInt())
         }
     }
-
 }

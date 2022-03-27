@@ -1,6 +1,8 @@
-package net.notjustanna.leanvm.ctx
+package net.notjustanna.leanvm.context
 
 import net.notjustanna.leanvm.StackTrace
+import net.notjustanna.leanvm.ctx.LeanContext
+import net.notjustanna.leanvm.ctx.LeanMachineControl
 import net.notjustanna.leanvm.types.LAny
 
 open class DummyLeanMachineControl : LeanMachineControl {

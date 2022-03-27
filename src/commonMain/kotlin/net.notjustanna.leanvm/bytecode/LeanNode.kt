@@ -8,7 +8,6 @@ public class LeanNode(
     private val jumpArr: Array<LeanJumpLabel>,
     private val sectArr: Array<LeanSectLabel>,
 ) : Serializable {
-
     public val insnCount: Int get() = insnArr.size
 
     public fun insnOrNull(index: Int): LeanInsn? {

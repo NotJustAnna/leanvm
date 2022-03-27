@@ -14,8 +14,6 @@ public data class LeanJumpLabel(val code: Int, val at: Int) : Serializable, Comp
     }
 
     public companion object : Deserializer<LeanJumpLabel> {
-        public const val SIZE_BYTES: Int = Int.SIZE_BYTES * 2
-
         override fun deserializeFrom(buffer: Buffer): LeanJumpLabel {
             return LeanJumpLabel(buffer.readInt(), buffer.readInt())
         }

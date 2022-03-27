@@ -10,8 +10,6 @@ public data class LeanSectDecl(val nameConst: Int, val line: Int, val column: In
     }
 
     public companion object : Deserializer<LeanSectDecl> {
-        public const val SIZE_BYTES: Int = Int.SIZE_BYTES * 3
-
         override fun deserializeFrom(buffer: Buffer): LeanSectDecl {
             return LeanSectDecl(buffer.readInt(), buffer.readInt(), buffer.readInt())
         }

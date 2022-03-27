@@ -19,7 +19,7 @@ public class LeanCode(
     }
 
     public fun lConst(index: Int): Long {
-        return lConstOrNull(index)
+        return lConstArr.getOrNull(index)
             ?: throw IndexOutOfBoundsException("Tried to access lConst $index on array with length ${lConstArr.size}")
     }
 
@@ -30,7 +30,7 @@ public class LeanCode(
     }
 
     public fun sConst(index: Int): String {
-        return sConstOrNull(index)
+        return sConstArr.getOrNull(index)
             ?: throw IndexOutOfBoundsException("Tried to access sConst $index on array with length ${sConstArr.size}")
     }
 
@@ -41,7 +41,7 @@ public class LeanCode(
     }
 
     public fun node(index: Int): LeanNode {
-        return nodeOrNull(index)
+        return nodeArr.getOrNull(index)
             ?: throw IndexOutOfBoundsException("Tried to access node $index on array with length ${nodeArr.size}")
     }
 
@@ -52,7 +52,7 @@ public class LeanCode(
     }
 
     public fun sect(index: Int): LeanSectDecl {
-        return sectOrNull(index)
+        return sectArr.getOrNull(index)
             ?: throw IndexOutOfBoundsException("Tried to access sect $index on array with length ${sectArr.size}")
     }
 
@@ -63,7 +63,7 @@ public class LeanCode(
     }
 
     public fun func(index: Int): LeanFuncDecl {
-        return funcOrNull(index)
+        return funcArr.getOrNull(index)
             ?: throw IndexOutOfBoundsException("Tried to access func $index on array with length ${funcArr.size}")
     }
 
@@ -98,7 +98,6 @@ public class LeanCode(
     }
 
     public companion object : Deserializer<LeanCode> {
-
         public fun create(
             lConstArr: List<Long>,
             sConstArr: List<String>,
@@ -123,6 +122,5 @@ public class LeanCode(
             val nodeArr = Array(buffer.readInt()) { LeanNode.deserializeFrom(buffer) }
             return LeanCode(lConstArr, sConstArr, funcArr, sectArr, nodeArr)
         }
-
     }
 }

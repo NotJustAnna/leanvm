@@ -20,7 +20,7 @@ public class LeanFuncDecl(
     }
 
     public fun param(index: Int): LeanParamDecl {
-        return paramOrNull(index)
+        return paramArr.getOrNull(index)
             ?: throw IndexOutOfBoundsException("Tried to access param $index on array with length ${paramArr.size}")
     }
 
@@ -40,12 +40,7 @@ public class LeanFuncDecl(
     }
 
     public companion object : Deserializer<LeanFuncDecl> {
-        public fun create(
-            nameConst: Int,
-            bodyId: Int,
-            varargsParam: Int,
-            paramArr: List<LeanParamDecl>,
-        ): LeanFuncDecl {
+        public fun create(nameConst: Int, bodyId: Int, varargsParam: Int, paramArr: List<LeanParamDecl>): LeanFuncDecl {
             return LeanFuncDecl(nameConst, bodyId, varargsParam, paramArr.toTypedArray())
         }
 
