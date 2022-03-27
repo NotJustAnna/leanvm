@@ -5,7 +5,7 @@ import net.adriantodt.leanvm.ctx.NodeExecutionContext
 import kotlin.test.Test
 import kotlin.test.assertFails
 
-class ExecutionContextTest {
+class NodeExecutionContextTest {
     @Test
     fun malformedPopScope() {
         val code = LeanCodeBuilder()

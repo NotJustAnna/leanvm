@@ -1,6 +1,6 @@
 package net.adriantodt.leanvm.types
 
-public data class LString(val value: String) : LAny() {
+public data class LString(val value: String = "") : LAny() {
     override val type: String get() = "string"
 
     override fun truth(): Boolean {
