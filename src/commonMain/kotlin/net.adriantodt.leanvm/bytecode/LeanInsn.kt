@@ -61,8 +61,6 @@ public data class LeanInsn(val opcode: Int, val immediate: Int) : Serializable {
             return LeanInsn(opcode.ordinal, immediate.requireU24("LeanInsn#immediate"))
         }
 
-        public const val SIZE_BYTES: Int = Int.SIZE_BYTES
-
         override fun deserializeFrom(buffer: Buffer): LeanInsn {
             return LeanInsn(buffer.readU8(), buffer.readU24())
         }
