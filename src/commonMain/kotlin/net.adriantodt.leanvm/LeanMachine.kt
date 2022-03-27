@@ -18,7 +18,7 @@ public class LeanMachine(initializer: (LeanMachineControl) -> LeanContext) {
                 control.onThrow(
                     when (e) {
                         is LAnyException -> e.value
-                        else -> current.runtime.handleJavaException(control, e)
+                        else -> current.runtime.handlePlatformException(control, e)
                     }
                 )
             }

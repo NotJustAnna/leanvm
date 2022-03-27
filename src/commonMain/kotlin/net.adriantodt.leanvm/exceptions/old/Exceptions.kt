@@ -23,43 +23,6 @@ public object Exceptions {
         )
     }
 
-    public fun notAFunction(type: String, stackTrace: List<StackTrace>): LObject {
-        return create(
-            "notAFunction",
-            "Cannot invoke function for type '$type'.",
-            stackTrace
-        )
-    }
-
-    public fun noElementExists(element: String, stackTrace: List<StackTrace>): LObject {
-        return create(
-            "noElementExists",
-            "Element '$element' does not exist.",
-            stackTrace
-        )
-    }
-
-    public fun unsupportedOperation(
-        operation: String,
-        leftType: String,
-        rightType: String,
-        stackTrace: List<StackTrace>,
-    ): LObject {
-        return create(
-            "unsupportedOperation",
-            "Cannot apply operation '$operation' for types '$leftType' and '$rightType'.",
-            stackTrace
-        )
-    }
-
-    public fun unsupportedOperation(operation: String, type: String, stackTrace: List<StackTrace>): LObject {
-        return create(
-            "unsupportedOperation",
-            "Cannot apply operation '$operation' for type '$type'.",
-            stackTrace
-        )
-    }
-
     public fun fromNative(e: Exception, stackTrace: List<StackTrace>): LAny {
         return create("nativeException", e.toString(), stackTrace)
     }
