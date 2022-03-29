@@ -1,7 +1,7 @@
 package net.adriantodt.leanvm
 
-import net.adriantodt.leanvm.ctx.LeanContext
-import net.adriantodt.leanvm.ctx.LeanMachineControl
+import net.adriantodt.leanvm.context.LeanContext
+import net.adriantodt.leanvm.context.LeanMachineControl
 import net.adriantodt.leanvm.types.LAny
 
 public class LeanMachine(initializer: (LeanMachineControl) -> LeanContext) {
@@ -17,7 +17,7 @@ public class LeanMachine(initializer: (LeanMachineControl) -> LeanContext) {
             } catch (e: Exception) {
                 control.onThrow(
                     when (e) {
-                        is LAnyException -> e.value
+                        is net.adriantodt.leanvm.LAnyException -> e.value
                         else -> current.runtime.handlePlatformException(control, e)
                     }
                 )
@@ -68,7 +68,7 @@ public class LeanMachine(initializer: (LeanMachineControl) -> LeanContext) {
             layer.onThrow(value)
         }
 
-        override fun stackTrace(): List<StackTrace> {
+        override fun stackTrace(): List<net.adriantodt.leanvm.StackTrace> {
             return (stack + current).asReversed().mapNotNull(LeanContext::trace)
         }
     }
