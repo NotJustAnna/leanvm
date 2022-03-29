@@ -1,4 +1,4 @@
-package net.adriantodt.leanvm.ctx
+package net.adriantodt.leanvm.context
 
 import net.adriantodt.leanvm.Scope
 import net.adriantodt.leanvm.StackTrace

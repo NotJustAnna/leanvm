@@ -1,9 +1,9 @@
 package net.adriantodt.leanvm.types
 
 import net.adriantodt.leanvm.LeanMachine
-import net.adriantodt.leanvm.ctx.LeanContext
-import net.adriantodt.leanvm.ctx.LeanMachineControl
-import net.adriantodt.leanvm.ctx.LeanRuntime
+import net.adriantodt.leanvm.context.LeanContext
+import net.adriantodt.leanvm.context.LeanMachineControl
+import net.adriantodt.leanvm.context.LeanRuntime
 
 public abstract class LFunction : LAny() {
     override val type: String get() = "function"
