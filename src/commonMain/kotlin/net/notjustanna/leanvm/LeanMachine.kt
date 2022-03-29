@@ -1,7 +1,7 @@
 package net.notjustanna.leanvm
 
-import net.notjustanna.leanvm.ctx.LeanContext
-import net.notjustanna.leanvm.ctx.LeanMachineControl
+import net.notjustanna.leanvm.context.LeanContext
+import net.notjustanna.leanvm.context.LeanMachineControl
 import net.notjustanna.leanvm.types.LAny
 
 public class LeanMachine(initializer: (LeanMachineControl) -> LeanContext) {
@@ -17,7 +17,7 @@ public class LeanMachine(initializer: (LeanMachineControl) -> LeanContext) {
             } catch (e: Exception) {
                 control.onThrow(
                     when (e) {
-                        is LAnyException -> e.value
+                        is net.notjustanna.leanvm.LAnyException -> e.value
                         else -> current.runtime.handlePlatformException(control, e)
                     }
                 )
@@ -68,7 +68,7 @@ public class LeanMachine(initializer: (LeanMachineControl) -> LeanContext) {
             layer.onThrow(value)
         }
 
-        override fun stackTrace(): List<StackTrace> {
+        override fun stackTrace(): List<net.notjustanna.leanvm.StackTrace> {
             return (stack + current).asReversed().mapNotNull(LeanContext::trace)
         }
     }

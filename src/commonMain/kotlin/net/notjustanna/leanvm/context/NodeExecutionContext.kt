@@ -1,4 +1,4 @@
-package net.notjustanna.leanvm.ctx
+package net.notjustanna.leanvm.context
 
 import net.notjustanna.leanvm.Scope
 import net.notjustanna.leanvm.StackTrace
