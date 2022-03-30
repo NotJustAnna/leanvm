@@ -5,67 +5,12 @@ import okio.Buffer
 import okio.ByteString.Companion.encodeUtf8
 
 public class LeanCode(
-    private val lConstArr: LongArray,
-    private val sConstArr: Array<String>,
-    private val funcArr: Array<LeanFuncDecl>,
-    private val sectArr: Array<LeanSectDecl>,
-    private val nodeArr: Array<LeanNode>,
+    public val lConstArr: LongArray,
+    public val sConstArr: Array<String>,
+    public val funcArr: Array<LeanFuncDecl>,
+    public val sectArr: Array<LeanSectDecl>,
+    public val nodeArr: Array<LeanNode>,
 ) : Serializable {
-
-    public val lCount: Int get() = lConstArr.size
-
-    public fun lConstOrNull(index: Int): Long? {
-        return lConstArr.getOrNull(index)
-    }
-
-    public fun lConst(index: Int): Long {
-        return lConstArr.getOrNull(index)
-            ?: throw IndexOutOfBoundsException("Tried to access lConst $index on array with length ${lConstArr.size}")
-    }
-
-    public val sCount: Int get() = sConstArr.size
-
-    public fun sConstOrNull(index: Int): String? {
-        return sConstArr.getOrNull(index)
-    }
-
-    public fun sConst(index: Int): String {
-        return sConstArr.getOrNull(index)
-            ?: throw IndexOutOfBoundsException("Tried to access sConst $index on array with length ${sConstArr.size}")
-    }
-
-    public val nodeCount: Int get() = nodeArr.size
-
-    public fun nodeOrNull(index: Int): LeanNode? {
-        return nodeArr.getOrNull(index)
-    }
-
-    public fun node(index: Int): LeanNode {
-        return nodeArr.getOrNull(index)
-            ?: throw IndexOutOfBoundsException("Tried to access node $index on array with length ${nodeArr.size}")
-    }
-
-    public val sectCount: Int get() = sectArr.size
-
-    public fun sectOrNull(index: Int): LeanSectDecl? {
-        return sectArr.getOrNull(index)
-    }
-
-    public fun sect(index: Int): LeanSectDecl {
-        return sectArr.getOrNull(index)
-            ?: throw IndexOutOfBoundsException("Tried to access sect $index on array with length ${sectArr.size}")
-    }
-
-    public val funcCount: Int get() = funcArr.size
-
-    public fun funcOrNull(index: Int): LeanFuncDecl? {
-        return funcArr.getOrNull(index)
-    }
-
-    public fun func(index: Int): LeanFuncDecl {
-        return funcArr.getOrNull(index)
-            ?: throw IndexOutOfBoundsException("Tried to access func $index on array with length ${funcArr.size}")
-    }
 
     override fun serializeTo(buffer: Buffer) {
         check(lConstArr.size.isU24) {

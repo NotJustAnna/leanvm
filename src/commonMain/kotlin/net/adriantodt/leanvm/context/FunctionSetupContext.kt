@@ -1,10 +1,10 @@
 package net.adriantodt.leanvm.context
 
-import net.adriantodt.leanvm.LAnyException
 import net.adriantodt.leanvm.Scope
 import net.adriantodt.leanvm.StackTrace
 import net.adriantodt.leanvm.bytecode.LeanNode
-import net.adriantodt.leanvm.exceptions.old.Exceptions
+import net.adriantodt.leanvm.exceptions.MalformedBytecodeException
+import net.adriantodt.leanvm.exceptions.MismatchedFunctionArgsException
 import net.adriantodt.leanvm.types.LAny
 import net.adriantodt.leanvm.types.LCompiledFunction
 
@@ -15,19 +15,34 @@ public class FunctionSetupContext(
     private val thisValue: LAny? = null,
     arguments: List<LAny>,
 ) : LeanContext {
-    private val body: LeanNode = function.source.node(function.data.bodyId)
+    private val body: LeanNode = function.source.nodeArr.getOrElse(function.data.bodyId) {
+        throw MalformedBytecodeException(
+            "Tried to load non-existent function body at index ${function.data.bodyId}.",
+            control.stackTrace()
+        )
+    }
     private val scope: Scope = Scope(function.rootScope)
-    private val paramCount: Int = function.data.paramCount
+    private val paramCount: Int = function.data.paramArr.size
     private var paramNext: Int = 0
     private val argsLeft: MutableList<LAny> = arguments.toMutableList()
     private var resolvedParamName: String? = null
 
     override fun step() {
         while (paramNext < paramCount) {
-            val parameter = function.data.param(paramNext++)
+            val parameter = function.data.paramArr.getOrElse(paramNext++) {
+                throw MalformedBytecodeException(
+                    "Tried to load function parameter $paramNext which wasn't defined.",
+                    control.stackTrace()
+                )
+            }
             val value = argsLeft.removeFirstOrNull()
 
-            val paramName = function.source.sConst(parameter.nameConst)
+            val paramName = function.source.sConstArr.getOrElse(parameter.nameConst) {
+                throw MalformedBytecodeException(
+                    "Tried to load string constant ${parameter.nameConst} which wasn't defined.",
+                    control.stackTrace()
+                )
+            }
             // TODO Not yet implemented: varargs parameter
 
             if (value != null) {
@@ -36,7 +51,12 @@ public class FunctionSetupContext(
             }
 
             if (parameter.defaultValueNodeId != -1) {
-                val paramBody = function.source.node(parameter.defaultValueNodeId)
+                val paramBody = function.source.nodeArr.getOrElse(parameter.defaultValueNodeId) {
+                    throw MalformedBytecodeException(
+                        "Tried to load non-existent default parameter body at index ${function.data.bodyId}.",
+                        control.stackTrace()
+                    )
+                }
                 resolvedParamName = paramName
                 scope.define(paramName, true)
                 control.push(
@@ -53,8 +73,10 @@ public class FunctionSetupContext(
                 return
             }
 
-            // TODO Throw actually useful exception
-            throw LAnyException(Exceptions.mismatchedArgs(control.stackTrace()))
+            throw MismatchedFunctionArgsException(
+                "Incorrect number of arguments for function ${function.name}",
+                control.stackTrace()
+            )
         }
 
         control.replace(

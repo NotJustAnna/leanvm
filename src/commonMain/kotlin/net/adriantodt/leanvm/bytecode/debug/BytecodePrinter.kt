@@ -10,43 +10,43 @@ public class BytecodePrinter {
     public fun printCode(code: LeanCode) {
         indentedPrintln("$code:")
         indent++
-        if (code.lCount > 0) {
+        if (code.lConstArr.isNotEmpty()) {
             indentedPrintln("Long pool:")
             indent++
-            repeat(code.lCount) {
-                indentedPrintln("[$it] ${code.lConst(it)}")
+            for ((index, it) in code.lConstArr.withIndex()) {
+                indentedPrintln("[$index] $it")
             }
             indent--
         }
-        if (code.sCount > 0) {
+        if (code.sConstArr.isNotEmpty()) {
             indentedPrintln("String pool:")
             indent++
-            repeat(code.sCount) {
-                indentedPrintln("[$it] ${code.sConst(it)}")
+            for ((index, it) in code.sConstArr.withIndex()) {
+                indentedPrintln("[$index] $it")
             }
             indent--
         }
-        if (code.nodeCount > 0) {
+        if (code.nodeArr.isNotEmpty()) {
             indentedPrintln("Nodes:")
             indent++
-            repeat(code.nodeCount) {
-                printNode(code.node(it))
+            for (it in code.nodeArr) {
+                printNode(it)
             }
             indent--
         }
-        if (code.sectCount > 0) {
+        if (code.sectArr.isNotEmpty()) {
             indentedPrintln("Sections:")
             indent++
-            repeat(code.sectCount) {
-                indentedPrintln("[$it] ${code.sect(it)}")
+            for ((index, it) in code.sectArr.withIndex()) {
+                indentedPrintln("[$index] $it")
             }
             indent--
         }
-        if (code.funcCount > 0) {
+        if (code.funcArr.isNotEmpty()) {
             indentedPrintln("Functions:")
             indent++
-            repeat(code.funcCount) {
-                printFunc(code.func(it))
+            for (it in code.funcArr) {
+                printFunc(it)
             }
             indent--
         }
@@ -55,27 +55,27 @@ public class BytecodePrinter {
     private fun printNode(node: LeanNode) {
         indentedPrintln("$node:")
         indent++
-        if (node.insnCount > 0) {
+        if (node.insnArr.isNotEmpty()) {
             indentedPrintln("Instructions:")
             indent++
-            repeat(node.insnCount) {
-                indentedPrintln("[$it] ${node.insn(it)}")
+            for ((index, it) in node.insnArr.withIndex()) {
+                indentedPrintln("[$index] $it")
             }
             indent--
         }
-        if (node.sectCount > 0) {
-            indentedPrintln("Sections:")
+        if (node.sectArr.isNotEmpty()) {
+            indentedPrintln("Section Labels:")
             indent++
-            repeat(node.sectCount) {
-                indentedPrintln("[$it] ${node.sect(it)}")
+            for ((index, it) in node.sectArr.withIndex()) {
+                indentedPrintln("[$index] $it")
             }
             indent--
         }
-        if (node.jumpCount > 0) {
+        if (node.jumpArr.isNotEmpty()) {
             indentedPrintln("Jumps:")
             indent++
-            repeat(node.jumpCount) {
-                indentedPrintln("[$it] ${node.jump(it)}")
+            for ((index, it) in node.jumpArr.withIndex()) {
+                indentedPrintln("[$index] $it")
             }
             indent--
         }
@@ -85,11 +85,11 @@ public class BytecodePrinter {
     private fun printFunc(func: LeanFuncDecl) {
         indentedPrintln("$func:")
         indent++
-        if (func.paramCount > 0) {
+        if (func.paramArr.isNotEmpty()) {
             indentedPrintln("Parameters:")
             indent++
-            repeat(func.paramCount) {
-                indentedPrintln("[$it] ${func.param(it)}")
+            for ((index, it) in func.paramArr.withIndex()) {
+                indentedPrintln("[$index] $it")
             }
             indent--
         }
