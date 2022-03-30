@@ -18,7 +18,12 @@ public class NodeExecutionContext(
     private var scope: Scope = Scope(),
     private val functionName: String = "<main>",
     override val runtime: LeanRuntime = LeanRuntime(),
-    private val node: LeanNode = code.node(0),
+    private val node: LeanNode = code.nodeArr.getOrElse(0) {
+        throw MalformedBytecodeException(
+            "Code does not contain an executable node.",
+            control.stackTrace()
+        )
+    },
     private val thisValue: LAny? = null,
 ) : LeanContext {
     private var next: Int = 0
@@ -26,11 +31,15 @@ public class NodeExecutionContext(
     private val exceptionHandlers: MutableList<ExceptionHandler> = mutableListOf()
 
     override fun step() {
-        val insn = node.insnOrNull(next++)
-
-        if (insn == null) {
+        if (next >= node.insnArr.size) {
             control.onReturn(stack.removeLastOrNull() ?: LNull)
             return
+        }
+        val insn = node.insnArr.getOrElse(next++) {
+            throw MalformedBytecodeException(
+                "Tried to execute non-existent instruction at index $next.",
+                control.stackTrace()
+            )
         }
 
         when (Opcode.values()[insn.opcode]) {
@@ -137,20 +146,44 @@ public class NodeExecutionContext(
                 ParameterlessCode.RANGE -> handleRangeOperation()
             }
             Opcode.ASSIGN -> {
-                scope.set(code.sConst(insn.immediate), popStack())
+                val s = code.sConstArr.getOrElse(insn.immediate) {
+                    throw MalformedBytecodeException(
+                        "Tried to load string constant ${insn.immediate} which wasn't defined.",
+                        control.stackTrace()
+                    )
+                }
+                scope.set(s, popStack())
             }
             Opcode.BRANCH_IF_FALSE -> handleBranchIf(false, insn.immediate)
             Opcode.BRANCH_IF_TRUE -> handleBranchIf(true, insn.immediate)
             Opcode.DECLARE_VARIABLE_IMMUTABLE -> {
-                scope.define(code.sConst(insn.immediate), false)
+                val s = code.sConstArr.getOrElse(insn.immediate) {
+                    throw MalformedBytecodeException(
+                        "Tried to load string constant ${insn.immediate} which wasn't defined.",
+                        control.stackTrace()
+                    )
+                }
+                scope.define(s, false)
             }
             Opcode.DECLARE_VARIABLE_MUTABLE -> {
-                scope.define(code.sConst(insn.immediate), true)
+                val s = code.sConstArr.getOrElse(insn.immediate) {
+                    throw MalformedBytecodeException(
+                        "Tried to load string constant ${insn.immediate} which wasn't defined.",
+                        control.stackTrace()
+                    )
+                }
+                scope.define(s, true)
             }
             Opcode.GET_MEMBER_PROPERTY -> handleGetMemberProperty(insn.immediate)
             Opcode.GET_SUBSCRIPT -> handleGetSubscript(insn.immediate)
             Opcode.GET_VARIABLE -> {
-                stack.add(scope.get(code.sConst(insn.immediate)))
+                val s = code.sConstArr.getOrElse(insn.immediate) {
+                    throw MalformedBytecodeException(
+                        "Tried to load string constant ${insn.immediate} which wasn't defined.",
+                        control.stackTrace()
+                    )
+                }
+                stack.add(scope.get(s))
             }
             Opcode.INVOKE -> handleInvoke(insn.immediate)
             Opcode.INVOKE_LOCAL -> handleInvokeLocal(insn.immediate)
@@ -162,16 +195,40 @@ public class NodeExecutionContext(
                 )
             }
             Opcode.LOAD_DECIMAL -> {
-                stack.add(LDecimal(Double.fromBits(code.lConst(insn.immediate))))
+                val l = code.lConstArr.getOrElse(insn.immediate) {
+                    throw MalformedBytecodeException(
+                        "Tried to load number constant ${insn.immediate} which wasn't defined.",
+                        control.stackTrace()
+                    )
+                }
+                stack.add(LDecimal(Double.fromBits(l)))
             }
             Opcode.LOAD_INTEGER -> {
-                stack.add(LInteger(code.lConst(insn.immediate)))
+                val i = code.lConstArr.getOrElse(insn.immediate) {
+                    throw MalformedBytecodeException(
+                        "Tried to load number constant ${insn.immediate} which wasn't defined.",
+                        control.stackTrace()
+                    )
+                }
+                stack.add(LInteger(i))
             }
             Opcode.LOAD_STRING -> {
-                stack.add(LString(code.sConst(insn.immediate)))
+                val s = code.sConstArr.getOrElse(insn.immediate) {
+                    throw MalformedBytecodeException(
+                        "Tried to load string constant ${insn.immediate} which wasn't defined.",
+                        control.stackTrace()
+                    )
+                }
+                stack.add(LString(s))
             }
             Opcode.NEW_FUNCTION -> {
-                stack.add(LCompiledFunction(code, code.func(insn.immediate), runtime, scope))
+                val f = code.funcArr.getOrElse(insn.immediate) {
+                    throw MalformedBytecodeException(
+                        "Tried to load function ${insn.immediate} which wasn't defined.",
+                        control.stackTrace()
+                    )
+                }
+                stack.add(LCompiledFunction(code, f, runtime, scope))
             }
             Opcode.PUSH_CHAR -> {
                 val value = insn.immediate.toChar()
@@ -191,7 +248,13 @@ public class NodeExecutionContext(
             Opcode.SET_MEMBER_PROPERTY -> handleSetMemberProperty(insn.immediate)
             Opcode.SET_SUBSCRIPT -> handleSetSubscript(insn.immediate)
             Opcode.SET_VARIABLE -> {
-                scope.set(code.sConst(insn.immediate), popStack())
+                val s = code.sConstArr.getOrElse(insn.immediate) {
+                    throw MalformedBytecodeException(
+                        "Tried to load string constant ${insn.immediate} which wasn't defined.",
+                        control.stackTrace()
+                    )
+                }
+                scope.set(s, popStack())
             }
         }
     }
@@ -217,11 +280,16 @@ public class NodeExecutionContext(
 
     override fun trace(): StackTrace? {
         val label = node.findSect(next - 1) ?: return null
-        val section = code.sectOrNull(label.index) ?: return null
-        return StackTrace(functionName, code.sConst(section.nameConst), section.line, section.column)
+        val section = code.sectArr.getOrElse(label.index) { return null }
+        val s = code.sConstArr.getOrElse(section.nameConst) {
+            throw MalformedBytecodeException(
+                "Tried to load string constant ${section.nameConst} which wasn't defined.",
+                control.stackTrace()
+            )
+        }
+        return StackTrace(functionName, s, section.line, section.column)
     }
 
-    // TODO Add `finally` handling
     public data class ExceptionHandler(val keepOnStack: Int, val jumpOnException: Int, val jumpOnEnd: Int)
 
     private fun popStack(): LAny {
@@ -251,7 +319,12 @@ public class NodeExecutionContext(
 
     private fun handleGetMemberProperty(nameConst: Int) {
         val target = popStack()
-        val name = code.sConst(nameConst)
+        val name = code.sConstArr.getOrElse(nameConst) {
+            throw MalformedBytecodeException(
+                "Tried to load string constant $nameConst which wasn't defined.",
+                control.stackTrace()
+            )
+        }
         if (target is LNull) {
             throw LeanNullPointerException(
                 "Tried to access member '$name' of null target.", control.stackTrace()
@@ -376,8 +449,13 @@ public class NodeExecutionContext(
         val size: Int = immediate and 0xff
 
         val arguments = List(size) { popStack() }.reversed()
-        val function = scope.get(code.sConst(nameConst))
-        invocation(null, function, arguments)
+        val s = code.sConstArr.getOrElse(nameConst) {
+            throw MalformedBytecodeException(
+                "Tried to load string constant $nameConst which wasn't defined.",
+                control.stackTrace()
+            )
+        }
+        invocation(null, scope.get(s), arguments)
     }
 
     private fun handleInvokeMember(immediate: Int) {
@@ -386,7 +464,13 @@ public class NodeExecutionContext(
 
         val arguments = List(size) { popStack() }.reversed()
         val parent = popStack()
-        invocation(parent, runtime.getMemberProperty(control, parent, code.sConst(nameConst)), arguments)
+        val s = code.sConstArr.getOrElse(nameConst) {
+            throw MalformedBytecodeException(
+                "Tried to load string constant $nameConst which wasn't defined.",
+                control.stackTrace()
+            )
+        }
+        invocation(parent, runtime.getMemberProperty(control, parent, s), arguments)
     }
 
     private fun handlePushExceptionHandling(immediate: Int) {
@@ -410,7 +494,12 @@ public class NodeExecutionContext(
 
     private fun handleSetMemberProperty(nameConst: Int) {
         val value = popStack()
-        val name = code.sConst(nameConst)
+        val name = code.sConstArr.getOrElse(nameConst) {
+            throw MalformedBytecodeException(
+                "Tried to load string constant $nameConst which wasn't defined.",
+                control.stackTrace()
+            )
+        }
         val parent = popStack()
         if (parent is LObject) {
             parent.value[LString(name)] = value

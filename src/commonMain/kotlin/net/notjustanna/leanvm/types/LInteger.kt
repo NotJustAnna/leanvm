@@ -3,52 +3,49 @@ package net.notjustanna.leanvm.types
 public data class LInteger(val value: Long) : LNumber() {
     override val type: String get() = "integer"
 
+    override val decimalValue: Double
+        get() = value.toDouble()
+
     override fun compareTo(other: LNumber): Int {
-        return when (other) {
-            is LDecimal -> value.compareTo(other.value)
-            is LInteger -> value.compareTo(other.value)
-            else -> throw AssertionError("Exhaustive match failed")
+        if (other is LInteger) {
+            return value.compareTo(other.value)
         }
+        return value.compareTo(other.decimalValue)
     }
 
     override fun plus(right: LNumber): LNumber {
-        return when (right) {
-            is LDecimal -> LDecimal(value + right.value)
-            is LInteger -> LInteger(value + right.value)
-            else -> throw AssertionError("Exhaustive match failed")
+        if (right is LInteger) {
+            return LInteger(value + right.value)
         }
+        return LDecimal(value + right.decimalValue)
     }
 
     override fun minus(right: LNumber): LNumber {
-        return when (right) {
-            is LDecimal -> LDecimal(value - right.value)
-            is LInteger -> LInteger(value - right.value)
-            else -> throw AssertionError("Exhaustive match failed")
+        if (right is LInteger) {
+            return LInteger(value - right.value)
         }
+        return LDecimal(value - right.decimalValue)
     }
 
     override fun times(right: LNumber): LNumber {
-        return when (right) {
-            is LDecimal -> LDecimal(value * right.value)
-            is LInteger -> LInteger(value * right.value)
-            else -> throw AssertionError("Exhaustive match failed")
+        if (right is LInteger) {
+            return LInteger(value * right.value)
         }
+        return LDecimal(value * right.decimalValue)
     }
 
     override fun div(right: LNumber): LNumber {
-        return when (right) {
-            is LDecimal -> LDecimal(value / right.value)
-            is LInteger -> LInteger(value / right.value)
-            else -> throw AssertionError("Exhaustive match failed")
+        if (right is LInteger) {
+            return LInteger(value / right.value)
         }
+        return LDecimal(value / right.decimalValue)
     }
 
     override fun rem(right: LNumber): LNumber {
-        return when (right) {
-            is LDecimal -> LDecimal(value % right.value)
-            is LInteger -> LInteger(value % right.value)
-            else -> throw AssertionError("Exhaustive match failed")
+        if (right is LInteger) {
+            return LInteger(value % right.value)
         }
+        return LDecimal(value % right.decimalValue)
     }
 
     override fun unaryPlus(): LNumber {

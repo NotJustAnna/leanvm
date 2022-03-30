@@ -1,8 +1,10 @@
+@file:Suppress("UNUSED_PARAMETER")
+
 package net.notjustanna.leanvm.context
 
+import net.notjustanna.leanvm.exceptions.LeanRuntimeException
 import net.notjustanna.leanvm.exceptions.LeanUnsupportedOperationException
-import net.notjustanna.leanvm.types.LAny
-import net.notjustanna.leanvm.types.LNull
+import net.notjustanna.leanvm.types.*
 import net.notjustanna.leanvm.utils.Comparison
 
 /**
@@ -28,7 +30,34 @@ public open class LeanRuntime {
      * the Lean machine's scope, into the user's code.
      */
     public open fun handlePlatformException(control: LeanMachineControl, exception: Exception): LAny {
-        TODO("Not yet implemented")
+        val stackTrace = LString("stackTrace")
+        val message = LString("message")
+        val errorType = LString("errorType")
+        val platformEsception = LString("platformException")
+
+        if (exception is LeanRuntimeException) {
+            return LObject(
+                errorType to LString(exception.leanExceptionName),
+                message to LString(exception.message),
+                stackTrace to LArray(exception.leanStackTrace.mapTo(mutableListOf()) { LString(it.toString()) }),
+                platformEsception to LObject(
+                    errorType to LString(exception::class.simpleName ?: "<anonymous exception>"),
+                    message to LString(exception.message),
+                    stackTrace to LString(exception.stackTraceToString())
+                )
+            )
+        }
+
+        return LObject(
+            errorType to platformEsception,
+            message to LString("A platform exception occurred."),
+            stackTrace to LArray(control.stackTrace().mapTo(mutableListOf()) { LString(it.toString()) }),
+            platformEsception to LObject(
+                errorType to LString(exception::class.simpleName ?: "<anonymous exception>"),
+                message to (exception.message?.let(::LString) ?: LNull),
+                stackTrace to LString(exception.stackTraceToString())
+            )
+        )
     }
 
     /**

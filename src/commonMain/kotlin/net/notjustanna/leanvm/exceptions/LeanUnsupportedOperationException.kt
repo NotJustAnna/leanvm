@@ -4,4 +4,7 @@ import net.notjustanna.leanvm.StackTrace
 
 public class LeanUnsupportedOperationException(
     message: String, trace: List<StackTrace>,
-) : LeanMachineException(message, trace)
+) : LeanRuntimeException(message, trace) {
+    override val leanExceptionName: String
+        get() = "unsupportedOperationException"
+}

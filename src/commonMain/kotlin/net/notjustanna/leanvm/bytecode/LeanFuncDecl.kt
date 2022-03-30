@@ -10,19 +10,8 @@ public class LeanFuncDecl(
     public val nameConst: Int,
     public val bodyId: Int,
     public val varargsParam: Int,
-    private val paramArr: Array<LeanParamDecl>,
+    public val paramArr: Array<LeanParamDecl>,
 ) : Serializable {
-
-    public val paramCount: Int = paramArr.size
-
-    public fun paramOrNull(index: Int): LeanParamDecl? {
-        return paramArr.getOrNull(index)
-    }
-
-    public fun param(index: Int): LeanParamDecl {
-        return paramArr.getOrNull(index)
-            ?: throw IndexOutOfBoundsException("Tried to access param $index on array with length ${paramArr.size}")
-    }
 
     override fun serializeTo(buffer: Buffer) {
         check(paramArr.size.isU8) { "LeanFuncDecl.paramArr exceeds max size of U8 (0xFF)." }

@@ -4,38 +4,17 @@ import net.notjustanna.leanvm.utils.*
 import okio.Buffer
 
 public class LeanNode(
-    private val insnArr: Array<LeanInsn>,
-    private val jumpArr: Array<LeanJumpLabel>,
-    private val sectArr: Array<LeanSectLabel>,
+    public val insnArr: Array<LeanInsn>,
+    public val jumpArr: Array<LeanJumpLabel>,
+    public val sectArr: Array<LeanSectLabel>,
 ) : Serializable {
-    public val insnCount: Int get() = insnArr.size
-
-    public fun insnOrNull(index: Int): LeanInsn? {
-        return insnArr.getOrNull(index)
-    }
-
-    public fun insn(index: Int): LeanInsn {
-        return insnArr.getOrNull(index)
-            ?: throw IndexOutOfBoundsException("Tried to access insn $index on array with length ${insnArr.size}")
-    }
-
-    public val sectCount: Int get() = sectArr.size
-
-    public fun sectOrNull(index: Int): LeanSectLabel? {
-        return sectArr.getOrNull(index)
-    }
-
-    public fun sect(index: Int): LeanSectLabel {
-        return sectArr.getOrNull(index)
-            ?: throw IndexOutOfBoundsException("Tried to access sect $index on array with length ${sectArr.size}")
-    }
 
     public fun findSect(last: Int): LeanSectLabel? {
         var low = 0
-        var high = sectCount - 1
+        var high = sectArr.size - 1
         while (low <= high) {
             val mid = (low + high) / 2
-            val midVal = sectOrNull(mid) ?: return null
+            val midVal = sectArr.getOrNull(mid) ?: return null
             when {
                 midVal.start + midVal.length < last -> low = mid + 1
                 midVal.start > last -> high = mid - 1
@@ -50,7 +29,7 @@ public class LeanNode(
         var high = jumpArr.size - 1
         while (low <= high) {
             val mid = (low + high) / 2
-            val midVal = jumpOrNull(mid) ?: return null
+            val midVal = jumpArr.getOrNull(mid) ?: return null
             when {
                 midVal.code < code -> low = mid + 1
                 midVal.code > code -> high = mid - 1
@@ -58,17 +37,6 @@ public class LeanNode(
             }
         }
         return null
-    }
-
-    public val jumpCount: Int get() = jumpArr.size
-
-    public fun jumpOrNull(index: Int): LeanJumpLabel? {
-        return jumpArr.getOrNull(index)
-    }
-
-    public fun jump(index: Int): LeanJumpLabel {
-        return jumpArr.getOrNull(index)
-            ?: throw IndexOutOfBoundsException("Tried to access jump $index on array with length ${jumpArr.size}")
     }
 
     override fun serializeTo(buffer: Buffer) {
@@ -85,7 +53,7 @@ public class LeanNode(
     }
 
     override fun toString(): String {
-        return "LeanNode[$insnCount insns, $jumpCount jumps, $sectCount sects]"
+        return "LeanNode[${insnArr.size} insns, ${jumpArr.size} jumps, ${sectArr.size} sects]"
     }
 
     public companion object : Deserializer<LeanNode> {
