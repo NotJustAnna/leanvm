@@ -244,7 +244,17 @@ public class NodeExecutionContext(
             Opcode.PUSH_INTEGER -> {
                 stack.add(LInteger(insn.immediate.toLong()))
             }
-            Opcode.PUSH_EXCEPTION_HANDLING -> handlePushExceptionHandling(insn.immediate)
+            Opcode.PUSH_EXCEPTION_HANDLING -> {
+                exceptionHandlers.add(
+                    ExceptionHandler(
+                        stack.size,
+                        node.findJump(insn.immediate)?.at ?: throw MalformedBytecodeException(
+                            "Tried to compute value of exception handling's catch label ${insn.immediate} which wasn't defined.",
+                            control.stackTrace()
+                        )
+                    )
+                )
+            }
             Opcode.SET_MEMBER_PROPERTY -> handleSetMemberProperty(insn.immediate)
             Opcode.SET_SUBSCRIPT -> handleSetSubscript(insn.immediate)
             Opcode.SET_VARIABLE -> {
@@ -274,7 +284,7 @@ public class NodeExecutionContext(
         } else if (handler.keepOnStack > stack.size) {
             repeat(handler.keepOnStack - stack.size) { popStack() }
         }
-        next = handler.jumpOnException
+        next = handler.onException
         stack.add(value)
     }
 
@@ -290,7 +300,7 @@ public class NodeExecutionContext(
         return StackTrace(functionName, s, section.line, section.column)
     }
 
-    public data class ExceptionHandler(val keepOnStack: Int, val jumpOnException: Int, val jumpOnEnd: Int)
+    public data class ExceptionHandler(val keepOnStack: Int, val onException: Int)
 
     private fun popStack(): LAny {
         return stack.removeLastOrNull() ?: throw MalformedBytecodeException(
@@ -471,25 +481,6 @@ public class NodeExecutionContext(
             )
         }
         invocation(parent, runtime.getMemberProperty(control, parent, s), arguments)
-    }
-
-    private fun handlePushExceptionHandling(immediate: Int) {
-        val catchLabel: Int = immediate shr 12
-        val endLabel: Int = immediate and 0xfff
-
-        exceptionHandlers.add(
-            ExceptionHandler(
-                stack.size,
-                node.findJump(catchLabel)?.at ?: throw MalformedBytecodeException(
-                    "Tried to compute value of exception handling's catch label $catchLabel which wasn't defined.",
-                    control.stackTrace()
-                ),
-                node.findJump(endLabel)?.at ?: throw MalformedBytecodeException(
-                    "Tried to compute value of exception handling's end label $endLabel which wasn't defined.",
-                    control.stackTrace()
-                ),
-            )
-        )
     }
 
     private fun handleSetMemberProperty(nameConst: Int) {
