@@ -50,13 +50,6 @@ public data class LeanInsn(val opcode: Int, val immediate: Int) : Serializable {
             )
         }
 
-        public fun double(opcode: Opcode, first: Int, second: Int) : LeanInsn {
-            return simple(
-                opcode,
-                first.requireU12("LeanInsn#first") shl 12 or second.requireU12("LeanInsn#second")
-            )
-        }
-
         public fun simple(opcode: Opcode, immediate: Int) : LeanInsn {
             return LeanInsn(opcode.ordinal, immediate.requireU24("LeanInsn#immediate"))
         }
