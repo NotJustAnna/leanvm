@@ -36,13 +36,6 @@ internal inline fun Int.requireU16(field: String): Int {
     return this
 }
 
-internal inline fun Int.requireU12(field: String): Int {
-    if (this !in 0..0xFFF) {
-        throw IllegalStateException("Field $field is outside of U12 bounds ($this !in 0..0xFFF)")
-    }
-    return this
-}
-
 internal inline fun Int.requireU8(field: String): Int {
     if (!isU8) {
         throw IllegalStateException("Field $field is outside of U8 bounds ($this !in 0..0xFF)")

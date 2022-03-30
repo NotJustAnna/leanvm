@@ -374,8 +374,8 @@ public class LeanNodeBuilder(private val parent: LeanCodeBuilder, public val nod
         insnArr += LeanInsn.parameterless(POP_SCOPE)
     }
 
-    public fun pushExceptionHandlingInsn(catchLabel: Int, endLabel: Int) {
-        insnArr += LeanInsn.double(PUSH_EXCEPTION_HANDLING, catchLabel, endLabel)
+    public fun pushExceptionHandlingInsn(catchLabel: Int) {
+        insnArr += LeanInsn.simple(PUSH_EXCEPTION_HANDLING, catchLabel)
     }
 
     public fun popExceptionHandlingInsn() {
@@ -411,8 +411,8 @@ public class LeanNodeBuilder(private val parent: LeanCodeBuilder, public val nod
     /**
      * Automatically pushes/pops the required exception handlers.
      */
-    public inline fun withExceptionHandling(catchLabel: Int, endLabel: Int, block: () -> Unit) {
-        pushExceptionHandlingInsn(catchLabel, endLabel)
+    public inline fun withExceptionHandling(catchLabel: Int, block: () -> Unit) {
+        pushExceptionHandlingInsn(catchLabel)
         block()
         popExceptionHandlingInsn()
     }
