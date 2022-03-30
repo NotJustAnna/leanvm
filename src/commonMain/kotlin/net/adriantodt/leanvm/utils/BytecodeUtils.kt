@@ -1,6 +1,7 @@
+@file:Suppress("NOTHING_TO_INLINE")
+
 package net.adriantodt.leanvm.utils
 
-import net.adriantodt.leanvm.exceptions.old.IntegerOutOfBoundsException
 import okio.Buffer
 
 private const val bit24th = 0x800000
@@ -16,35 +17,35 @@ internal val Int.isU8 get() = this in 0..0xFF
 
 internal inline fun Int.requireU24(field: String): Int {
     if (!isU24) {
-        throw IntegerOutOfBoundsException("Field $field is outside of U24 bounds ($this !in 0..0xFFFFFF)")
+        throw IllegalStateException("Field $field is outside of U24 bounds ($this !in 0..0xFFFFFF)")
     }
     return this
 }
 
 internal inline fun Int.requireI24(field: String): Int {
     if (this !in minI24..maxI24) {
-        throw IntegerOutOfBoundsException("Field $field is outside of I24 bounds ($this !in -0x800000..0x7FFFFF)")
+        throw IllegalStateException("Field $field is outside of I24 bounds ($this !in -0x800000..0x7FFFFF)")
     }
     return this
 }
 
 internal inline fun Int.requireU16(field: String): Int {
     if (this !in 0..0xFFFF) {
-        throw IntegerOutOfBoundsException("Field $field is outside of U16 bounds ($this !in 0..0xFFFF)")
+        throw IllegalStateException("Field $field is outside of U16 bounds ($this !in 0..0xFFFF)")
     }
     return this
 }
 
 internal inline fun Int.requireU12(field: String): Int {
     if (this !in 0..0xFFF) {
-        throw IntegerOutOfBoundsException("Field $field is outside of U12 bounds ($this !in 0..0xFFF)")
+        throw IllegalStateException("Field $field is outside of U12 bounds ($this !in 0..0xFFF)")
     }
     return this
 }
 
 internal inline fun Int.requireU8(field: String): Int {
     if (!isU8) {
-        throw IntegerOutOfBoundsException("Field $field is outside of U8 bounds ($this !in 0..0xFF)")
+        throw IllegalStateException("Field $field is outside of U8 bounds ($this !in 0..0xFF)")
     }
     return this
 }

@@ -16,4 +16,6 @@ public sealed class LNumber : LAny() {
     public abstract operator fun unaryPlus(): LNumber
 
     public abstract operator fun unaryMinus(): LNumber
+
+    internal abstract val decimalValue: Double
 }

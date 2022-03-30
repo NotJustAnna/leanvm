@@ -15,7 +15,7 @@ public class LCompiledFunction(
     public val rootScope: Scope,
 ) : LFunction() {
     override val name: String?
-        get() = source.sConstOrNull(data.nameConst)
+        get() = source.sConstArr.getOrNull(data.nameConst)
 
     override fun setupContext(
         control: LeanMachineControl,
