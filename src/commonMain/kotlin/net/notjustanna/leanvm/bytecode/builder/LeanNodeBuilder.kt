@@ -445,8 +445,9 @@ public class LeanNodeBuilder(private val parent: LeanCodeBuilder, public val nod
 
     public fun build(): LeanNode {
         if (sectStack.isNotEmpty()) {
-            println("This should not have happened.")
-            generateSectionLabel(sectStack.last())
+            throw IllegalStateException(
+                "LeanNode cannot be built because there are ${sectStack.size} sections still not ended"
+            )
         }
         return LeanNode.create(insnArr.toList(), jumpArr.sorted(), sectArr.sorted())
     }
