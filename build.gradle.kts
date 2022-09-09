@@ -1,7 +1,7 @@
 plugins {
     kotlin("multiplatform") version "1.7.20-RC"
     `maven-publish`
-    id("org.jetbrains.dokka") version "1.6.10"
+    id("org.jetbrains.dokka") version "1.7.10"
     id("co.uzzu.dotenv.gradle") version "2.0.0"
 }
 
@@ -10,7 +10,7 @@ version = "0.1.0"
 
 repositories {
     mavenCentral()
-    maven { url = uri("https://maven.cafeteria.dev") }
+    maven { url = uri("https://maven.cafeteria.dev/releases") }
 }
 
 kotlin {
@@ -51,7 +51,7 @@ kotlin {
 
         val commonMain by getting {
             dependencies {
-                api("com.squareup.okio:okio:3.0.0")
+                api("com.squareup.okio:okio:3.2.0")
             }
         }
         val commonTest by getting {
