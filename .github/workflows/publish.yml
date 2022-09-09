@@ -14,7 +14,11 @@ jobs:
         # Use these Java versions
         java: [ 17 ]
         # and run on Linux, Windows and macOS
-        os: [ ubuntu-20.04, windows-latest, macos-11 ]
+        os: [
+          ubuntu-20.04,
+          # windows-latest,
+          macos-11
+        ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: checkout repository
@@ -35,12 +39,13 @@ jobs:
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
-      - name: Publish to GitHub Packages  (Windows)
-        if: ${{ runner.os == 'Windows' }}
-        run: gradle publishMingwX64PublicationToMavenRepository
-        env:
-          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+      # # As of Sep 2022, Kotlin/Native Linux already compiles for Windows.
+      # - name: Publish to GitHub Packages  (Windows)
+      #   if: ${{ runner.os == 'Windows' }}
+      #   run: gradle publishMingwX64PublicationToMavenRepository
+      #   env:
+      #     MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+      #     MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}.
       - name: Publish to GitHub Packages  (macOS)
         if: ${{ runner.os == 'macOS' }}
         run: gradle publishMacosX64PublicationToMavenRepository
