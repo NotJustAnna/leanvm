@@ -33,17 +33,17 @@ jobs:
         if: ${{ runner.os == 'Linux' }}
         run: gradle publish
         env:
-          MCD_USERNAME: ${{ secrets.MCD_USERNAME }}
-          MCD_PASSWORD: ${{ secrets.MCD_PASSWORD }}
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
       - name: Publish to GitHub Packages  (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: gradle publishMingwX64PublicationToMavenRepository
         env:
-          MCD_USERNAME: ${{ secrets.MCD_USERNAME }}
-          MCD_PASSWORD: ${{ secrets.MCD_PASSWORD }}
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
       - name: Publish to GitHub Packages  (macOS)
         if: ${{ runner.os == 'macOS' }}
         run: gradle publishMacosX64PublicationToMavenRepository
         env:
-          MCD_USERNAME: ${{ secrets.MCD_USERNAME }}
-          MCD_PASSWORD: ${{ secrets.MCD_PASSWORD }}
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}

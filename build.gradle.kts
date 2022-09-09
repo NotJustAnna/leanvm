@@ -1,7 +1,8 @@
 plugins {
-    kotlin("multiplatform") version "1.6.20-RC2"
+    kotlin("multiplatform") version "1.7.20-RC"
     `maven-publish`
     id("org.jetbrains.dokka") version "1.6.10"
+    id("co.uzzu.dotenv.gradle") version "2.0.0"
 }
 
 group = "net.notjustanna"
@@ -97,11 +98,11 @@ publishing {
 
     repositories {
         maven {
-            url = uri("https://maven.cafeteria.dev/releases")
+            url = uri("https://maven.notjustanna.net/releases")
 
             credentials {
-                username = "${project.findProperty("mcdUsername") ?: System.getenv("MCD_USERNAME")}"
-                password = "${project.findProperty("mcdPassword") ?: System.getenv("MCD_PASSWORD")}"
+                username = env.fetchOrNull("MAVEN_USERNAME") ?: System.getenv("MAVEN_USERNAME")
+                password = env.fetchOrNull("MAVEN_PASSWORD") ?: System.getenv("MAVEN_PASSWORD")
             }
             authentication {
                 create("basic", BasicAuthentication::class.java)
