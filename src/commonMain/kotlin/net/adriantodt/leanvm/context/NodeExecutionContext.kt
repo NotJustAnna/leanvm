@@ -188,6 +188,7 @@ public class NodeExecutionContext(
             Opcode.INVOKE -> handleInvoke(insn.immediate)
             Opcode.INVOKE_LOCAL -> handleInvokeLocal(insn.immediate)
             Opcode.INVOKE_MEMBER -> handleInvokeMember(insn.immediate)
+            Opcode.INVOKE_EXTENSION -> handleInvokeExtension(insn.immediate)
             Opcode.JUMP -> {
                 next = node.findJump(insn.immediate)?.at ?: throw MalformedBytecodeException(
                     "Tried to jump to label ${insn.immediate} which wasn't defined.",
@@ -481,6 +482,13 @@ public class NodeExecutionContext(
             )
         }
         invocation(parent, runtime.getMemberProperty(control, parent, s), arguments)
+    }
+
+    private fun handleInvokeExtension(size: Int) {
+        val arguments = List(size) { popStack() }.reversed()
+        val function = popStack()
+        val target = popStack()
+        invocation(target, function, arguments)
     }
 
     private fun handleSetMemberProperty(nameConst: Int) {

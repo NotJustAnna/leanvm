@@ -124,6 +124,14 @@ public class LeanNodeBuilder(private val parent: LeanCodeBuilder, public val nod
     }
 
     /**
+     * Invokes a extension function from an object on the stack with arguments.
+     *
+     * Stack Inputs: (object, function, args...)
+     *
+     * Stack Outputs: (result)
+     */
+
+    /**
      * Pushes a string into the stack.
      *
      * Stack Inputs: ()
