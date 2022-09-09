@@ -12,7 +12,6 @@ public class LeanFuncDecl(
     public val varargsParam: Int,
     public val paramArr: Array<LeanParamDecl>,
 ) : Serializable {
-
     override fun serializeTo(buffer: Buffer) {
         check(paramArr.size.isU8) { "LeanFuncDecl.paramArr exceeds max size of U8 (0xFF)." }
 
