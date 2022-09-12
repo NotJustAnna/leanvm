@@ -63,9 +63,9 @@ public class FunctionSetupContext(
                     NodeExecutionContext(
                         control,
                         function.source,
-                        scope,
                         function.name ?: "<anonymous function>",
                         runtime,
+                        scope,
                         paramBody,
                         thisValue
                     )
@@ -83,9 +83,9 @@ public class FunctionSetupContext(
             NodeExecutionContext(
                 control,
                 function.source,
-                Scope(scope),
                 function.name ?: "<anonymous function>",
                 runtime,
+                Scope(scope),
                 body,
                 thisValue
             )

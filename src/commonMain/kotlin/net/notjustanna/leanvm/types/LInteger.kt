@@ -1,6 +1,8 @@
 package net.notjustanna.leanvm.types
 
 public data class LInteger(val value: Long) : LNumber() {
+    public constructor(value: Int) : this(value.toLong())
+
     override val type: String get() = "integer"
 
     override val decimalValue: Double

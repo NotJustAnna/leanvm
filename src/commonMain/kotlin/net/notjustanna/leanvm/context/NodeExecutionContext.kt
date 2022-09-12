@@ -15,9 +15,9 @@ import net.notjustanna.leanvm.utils.Comparison
 public class NodeExecutionContext(
     private val control: LeanMachineControl,
     private val code: LeanCode,
-    private var scope: Scope = Scope(),
     private val functionName: String = "<main>",
     override val runtime: LeanRuntime = LeanRuntime(),
+    private var scope: Scope = runtime.rootScope(),
     private val node: LeanNode = code.nodeArr.getOrElse(0) {
         throw MalformedBytecodeException(
             "Code does not contain an executable node.",

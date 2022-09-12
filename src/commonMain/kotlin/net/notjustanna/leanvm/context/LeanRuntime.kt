@@ -2,6 +2,7 @@
 
 package net.notjustanna.leanvm.context
 
+import net.notjustanna.leanvm.Scope
 import net.notjustanna.leanvm.exceptions.LeanRuntimeException
 import net.notjustanna.leanvm.exceptions.LeanUnsupportedOperationException
 import net.notjustanna.leanvm.types.*
@@ -13,6 +14,7 @@ import net.notjustanna.leanvm.utils.Comparison
  * This class can be used to customize the behavior of the virtual machine.
  */
 public open class LeanRuntime {
+    public open fun rootScope(): Scope = Scope()
 
     public open fun getMemberProperty(control: LeanMachineControl, target: LAny, name: String): LAny {
         TODO("Not yet implemented")
