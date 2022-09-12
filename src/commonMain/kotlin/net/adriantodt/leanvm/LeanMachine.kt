@@ -38,6 +38,10 @@ public class LeanMachine(initializer: (LeanMachineControl) -> LeanContext) {
         return result ?: throw RuntimeException("Execution not finished")
     }
 
+    public fun stackTrace(): List<StackTrace> {
+        return control.stackTrace()
+    }
+
     public inner class Control : LeanMachineControl {
         override fun push(layer: LeanContext) {
             stack += current
