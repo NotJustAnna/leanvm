@@ -33,14 +33,14 @@ public open class LeanRuntime {
         val stackTrace = LString("stackTrace")
         val message = LString("message")
         val errorType = LString("errorType")
-        val platformEsception = LString("platformException")
+        val platformException = LString("platformException")
 
         if (exception is LeanRuntimeException) {
             return LObject(
                 errorType to LString(exception.leanExceptionName),
                 message to LString(exception.message),
                 stackTrace to LArray(exception.leanStackTrace.mapTo(mutableListOf()) { LString(it.toString()) }),
-                platformEsception to LObject(
+                platformException to LObject(
                     errorType to LString(exception::class.simpleName ?: "<anonymous exception>"),
                     message to LString(exception.message),
                     stackTrace to LString(exception.stackTraceToString())
@@ -49,10 +49,10 @@ public open class LeanRuntime {
         }
 
         return LObject(
-            errorType to platformEsception,
+            errorType to platformException,
             message to LString("A platform exception occurred."),
             stackTrace to LArray(control.stackTrace().mapTo(mutableListOf()) { LString(it.toString()) }),
-            platformEsception to LObject(
+            platformException to LObject(
                 errorType to LString(exception::class.simpleName ?: "<anonymous exception>"),
                 message to (exception.message?.let(::LString) ?: LNull),
                 stackTrace to LString(exception.stackTraceToString())
