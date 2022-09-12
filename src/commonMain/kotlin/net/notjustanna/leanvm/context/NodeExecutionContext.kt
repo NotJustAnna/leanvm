@@ -119,9 +119,13 @@ public class NodeExecutionContext(
                 ParameterlessCode.NEGATIVE -> handleNegativeOperation()
                 ParameterlessCode.TRUTH -> {
                     stack.add(LBoolean.of(popStack().truth()))
+                    // TODO handle metaobjects
+                    // Difficulty: easy (adding a function context will be enough)
                 }
                 ParameterlessCode.NOT -> {
                     stack.add(LBoolean.of(!popStack().truth()))
+                    // TODO handle metaobjects
+                    // Difficulty: easy (adding a function context will be enough)
                 }
                 ParameterlessCode.ADD -> handleAddOperation()
                 ParameterlessCode.SUBTRACT -> handleSubtractOperation()
@@ -132,11 +136,15 @@ public class NodeExecutionContext(
                     val right = popStack()
                     val left = popStack()
                     stack.add(LBoolean.of(right == left))
+                    // TODO handle metaobjects
+                    // Difficulty: easy (adding a function context will be enough)
                 }
                 ParameterlessCode.NOT_EQUALS -> {
                     val right = popStack()
                     val left = popStack()
                     stack.add(LBoolean.of(right != left))
+                    // TODO handle metaobjects
+                    // Difficulty: easy (adding a function context will be enough)
                 }
                 ParameterlessCode.LT -> handleComparison(Comparison.LT)
                 ParameterlessCode.LTE -> handleComparison(Comparison.LTE)
@@ -320,6 +328,11 @@ public class NodeExecutionContext(
     // handlers
 
     private fun handleBranchIf(value: Boolean, labelCode: Int) {
+        // TODO handle metaobjects
+        // Difficulty: hard (post-function call logic is required)
+        // Fix: create a BranchExecutionContext that can be used to handle this.
+        // Other fix: replace the LeanContext onReturn/onThrow logic with a per-case.
+        // Possible workaround: would decrementing the PC once (making this be re-executed) make the VM handle this?
         if (popStack().truth() == value) {
             next = node.findJump(labelCode)?.at ?: throw MalformedBytecodeException(
                 "Tried to branch to label $labelCode which wasn't defined.",
@@ -341,6 +354,9 @@ public class NodeExecutionContext(
                 "Tried to access member '$name' of null target.", control.stackTrace()
             )
         }
+
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         stack.add(runtime.getMemberProperty(control, target, name))
     }
 
@@ -446,6 +462,8 @@ public class NodeExecutionContext(
             }
         }
 
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         stack.add(runtime.customGetSubscript(control, parent, arguments))
     }
 
@@ -504,6 +522,8 @@ public class NodeExecutionContext(
             parent.value[LString(name)] = value
         }
 
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         runtime.setMemberProperty(control, parent, name, value)
     }
 
@@ -523,6 +543,8 @@ public class NodeExecutionContext(
             parent.value[arg] = value
             return
         }
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         runtime.customSetSubscript(control, parent, arguments, value)
     }
 
@@ -541,6 +563,8 @@ public class NodeExecutionContext(
             stack.add(left + right)
             return
         }
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         stack.add(runtime.customAddOperation(control, left, right))
     }
 
@@ -551,6 +575,8 @@ public class NodeExecutionContext(
             stack.add(left / right)
             return
         }
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         stack.add(runtime.customDivideOperation(control, left, right))
     }
 
@@ -564,6 +590,8 @@ public class NodeExecutionContext(
             stack.add(left * right)
             return
         }
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         stack.add(runtime.customMultiplyOperation(control, left, right))
     }
 
@@ -574,6 +602,8 @@ public class NodeExecutionContext(
             stack.add(left..right)
             return
         }
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         stack.add(runtime.customRangeOperation(control, left, right))
     }
 
@@ -584,6 +614,8 @@ public class NodeExecutionContext(
             stack.add(left % right)
             return
         }
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         stack.add(runtime.customRemainingOperation(control, left, right))
     }
 
@@ -594,6 +626,8 @@ public class NodeExecutionContext(
             stack.add(left - right)
             return
         }
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         stack.add(runtime.customSubtractOperation(control, left, right))
     }
 
@@ -608,6 +642,8 @@ public class NodeExecutionContext(
             stack.add(LBoolean.of(comparison.block(left.compareTo(right))))
             return
         }
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         stack.add(runtime.customComparison(control, comparison, left, right))
     }
 
@@ -622,6 +658,8 @@ public class NodeExecutionContext(
             stack.add(LBoolean.of(left in right.value))
             return
         }
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         stack.add(LBoolean.of(runtime.customInOperation(control, left, right)))
     }
 
@@ -631,6 +669,8 @@ public class NodeExecutionContext(
             stack.add(-target)
             return
         }
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         stack.add(runtime.customNegativeOperation(control, target))
     }
 
@@ -640,6 +680,8 @@ public class NodeExecutionContext(
             stack.add(+target)
             return
         }
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         stack.add(runtime.customPositiveOperation(control, target))
     }
 
@@ -648,6 +690,8 @@ public class NodeExecutionContext(
             control.push(function.setupContext(control, thisValue, args, runtime))
             return
         }
+        // TODO handle metaobjects
+        // Difficulty: easy (adding a function context will be enough)
         runtime.customInvocation(control, thisValue, function, args)
     }
 }
