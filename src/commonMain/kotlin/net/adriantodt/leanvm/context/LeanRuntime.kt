@@ -2,6 +2,7 @@
 
 package net.adriantodt.leanvm.context
 
+import net.adriantodt.leanvm.Scope
 import net.adriantodt.leanvm.exceptions.LeanRuntimeException
 import net.adriantodt.leanvm.exceptions.LeanUnsupportedOperationException
 import net.adriantodt.leanvm.types.*
@@ -13,6 +14,7 @@ import net.adriantodt.leanvm.utils.Comparison
  * This class can be used to customize the behavior of the virtual machine.
  */
 public open class LeanRuntime {
+    public open fun rootScope(): Scope = Scope()
 
     public open fun getMemberProperty(control: LeanMachineControl, target: LAny, name: String): LAny {
         TODO("Not yet implemented")

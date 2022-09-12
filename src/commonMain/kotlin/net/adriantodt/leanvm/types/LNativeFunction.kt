@@ -7,10 +7,10 @@ import net.adriantodt.leanvm.context.LeanRuntime
 
 public abstract class LNativeFunction(
     override val name: String? = null,
-    public val runtime: LeanRuntime? = null,
+    private val runtime: LeanRuntime? = null,
 ) : LFunction() {
 
-    public abstract fun block(thisValue: LAny?, args: List<LAny>): LAny
+    protected abstract fun run(thisValue: LAny?, args: List<LAny>): LAny
 
     override fun setupContext(
         control: LeanMachineControl,
@@ -29,7 +29,7 @@ public abstract class LNativeFunction(
         private val args: List<LAny>,
     ) : LeanContext {
         override fun step() {
-            control.onReturn(function.block(thisValue, args))
+            control.onReturn(function.run(thisValue, args))
         }
 
         override fun onReturn(value: LAny) {
@@ -52,7 +52,7 @@ public abstract class LNativeFunction(
             block: (thisValue: LAny?, args: List<LAny>) -> LAny,
         ): LNativeFunction {
             return object : LNativeFunction(name, runtime) {
-                override fun block(thisValue: LAny?, args: List<LAny>): LAny {
+                override fun run(thisValue: LAny?, args: List<LAny>): LAny {
                     return block(thisValue, args)
                 }
             }
