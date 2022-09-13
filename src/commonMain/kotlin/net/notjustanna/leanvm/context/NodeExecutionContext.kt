@@ -3,34 +3,33 @@ package net.notjustanna.leanvm.context
 import net.notjustanna.leanvm.Scope
 import net.notjustanna.leanvm.StackTrace
 import net.notjustanna.leanvm.bytecode.LeanCode
-import net.notjustanna.leanvm.bytecode.LeanInsn.Opcode
-import net.notjustanna.leanvm.bytecode.LeanInsn.ParameterlessCode
 import net.notjustanna.leanvm.bytecode.LeanNode
 import net.notjustanna.leanvm.exceptions.LeanIndexOutOfBoundsException
 import net.notjustanna.leanvm.exceptions.LeanNullPointerException
+import net.notjustanna.leanvm.exceptions.LeanRuntimeException
 import net.notjustanna.leanvm.exceptions.MalformedBytecodeException
 import net.notjustanna.leanvm.types.*
 import net.notjustanna.leanvm.utils.Comparison
+import net.notjustanna.leanvm.utils.InstructionDecoder
+import kotlin.math.sign
 
 public class NodeExecutionContext(
-    private val control: LeanMachineControl,
+    protected override val control: LeanMachineControl,
     private val code: LeanCode,
     private val functionName: String = "<main>",
-    override val runtime: LeanRuntime = LeanRuntime(),
+    private val thisValue: LAny? = null,
+    public override val runtime: LeanRuntime = LeanRuntime(),
     private var scope: Scope = runtime.rootScope(),
     private val node: LeanNode = code.nodeArr.getOrElse(0) {
-        throw MalformedBytecodeException(
-            "Code does not contain an executable node.",
-            control.stackTrace()
-        )
+        throw MalformedBytecodeException("Code does not contain an executable node.", control.stackTrace())
     },
-    private val thisValue: LAny? = null,
-) : LeanContext {
+) : InstructionDecoder(), LeanContext {
     private var next: Int = 0
     private val stack: MutableList<LAny> = mutableListOf()
     private val exceptionHandlers: MutableList<ExceptionHandler> = mutableListOf()
+    private var customReturn: ((value: LAny) -> Unit)? = null
 
-    override fun step() {
+    public override fun step() {
         if (next >= node.insnArr.size) {
             control.onReturn(stack.removeLastOrNull() ?: LNull)
             return
@@ -41,248 +40,20 @@ public class NodeExecutionContext(
                 control.stackTrace()
             )
         }
+        handle(insn)
+    }
 
-        when (Opcode.values()[insn.opcode]) {
-            Opcode.PARAMETERLESS -> when (ParameterlessCode.values()[insn.immediate]) {
-                ParameterlessCode.ARRAY_INSERT -> {
-                    val value = popStack()
-                    val array = peekStack()
-                    if (array !is LArray) {
-                        throw MalformedBytecodeException(
-                            "Tried to arrayInsert value '$value' into '$array' which is of type '${array.type}'.",
-                            control.stackTrace()
-                        )
-                    }
-                    array.value.add(value)
-                }
-                ParameterlessCode.DUP -> {
-                    stack.add(peekStack())
-                }
-                ParameterlessCode.NEW_ARRAY -> {
-                    stack.add(LArray())
-                }
-                ParameterlessCode.NEW_OBJECT -> {
-                    stack.add(LObject())
-                }
-                ParameterlessCode.OBJECT_INSERT -> {
-                    val value = popStack()
-                    val key = popStack()
-                    val obj = peekStack()
-                    if (obj !is LObject) {
-                        throw MalformedBytecodeException(
-                            "Tried to objectInsert key '$key' and value '$value' into '$obj' which is of type '${obj.type}'.",
-                            control.stackTrace()
-                        )
-                    }
-                    obj.value[key] = value
-                }
-                ParameterlessCode.POP -> {
-                    popStack()
-                }
-                ParameterlessCode.POP_SCOPE -> {
-                    scope = scope.parent ?: throw MalformedBytecodeException(
-                        "Tried to pop scope but encountered a root scope.",
-                        control.stackTrace()
-                    )
-                }
-                ParameterlessCode.POP_EXCEPTION_HANDLING -> {
-                    exceptionHandlers.removeLastOrNull() ?: throw MalformedBytecodeException(
-                        "Tried execute POP_EXCEPTION_HANDLING instruction but found no exception handler.",
-                        control.stackTrace()
-                    )
-                }
-                ParameterlessCode.PUSH_NULL -> {
-                    stack.add(LNull)
-                }
-                ParameterlessCode.PUSH_SCOPE -> {
-                    scope = Scope(scope)
-                }
-                ParameterlessCode.PUSH_THIS -> {
-                    stack.add(thisValue ?: runtime.customThisValue(control))
-                }
-                ParameterlessCode.RETURN -> {
-                    control.onReturn(popStack())
-                }
-                ParameterlessCode.THROW -> {
-                    onThrow(popStack())
-                }
-                ParameterlessCode.TYPEOF -> {
-                    stack.add(LString(popStack().type))
-                }
-                ParameterlessCode.PUSH_TRUE -> {
-                    stack.add(LBoolean.True)
-                }
-                ParameterlessCode.PUSH_FALSE -> {
-                    stack.add(LBoolean.False)
-                }
-                ParameterlessCode.POSITIVE -> handlePositiveOperation()
-                ParameterlessCode.NEGATIVE -> handleNegativeOperation()
-                ParameterlessCode.TRUTH -> {
-                    stack.add(LBoolean.of(popStack().truth()))
-                    // TODO handle metaobjects
-                    // Difficulty: easy (adding a function context will be enough)
-                }
-                ParameterlessCode.NOT -> {
-                    stack.add(LBoolean.of(!popStack().truth()))
-                    // TODO handle metaobjects
-                    // Difficulty: easy (adding a function context will be enough)
-                }
-                ParameterlessCode.ADD -> handleAddOperation()
-                ParameterlessCode.SUBTRACT -> handleSubtractOperation()
-                ParameterlessCode.MULTIPLY -> handleMultiplyOperation()
-                ParameterlessCode.DIVIDE -> handleDivideOperation()
-                ParameterlessCode.REMAINING -> handleRemainingOperation()
-                ParameterlessCode.EQUALS -> {
-                    val right = popStack()
-                    val left = popStack()
-                    stack.add(LBoolean.of(right == left))
-                    // TODO handle metaobjects
-                    // Difficulty: easy (adding a function context will be enough)
-                }
-                ParameterlessCode.NOT_EQUALS -> {
-                    val right = popStack()
-                    val left = popStack()
-                    stack.add(LBoolean.of(right != left))
-                    // TODO handle metaobjects
-                    // Difficulty: easy (adding a function context will be enough)
-                }
-                ParameterlessCode.LT -> handleComparison(Comparison.LT)
-                ParameterlessCode.LTE -> handleComparison(Comparison.LTE)
-                ParameterlessCode.GT -> handleComparison(Comparison.GT)
-                ParameterlessCode.GTE -> handleComparison(Comparison.GTE)
-                ParameterlessCode.IN -> handleInOperation()
-                ParameterlessCode.RANGE -> handleRangeOperation()
-            }
-            Opcode.ASSIGN -> {
-                val s = code.sConstArr.getOrElse(insn.immediate) {
-                    throw MalformedBytecodeException(
-                        "Tried to load string constant ${insn.immediate} which wasn't defined.",
-                        control.stackTrace()
-                    )
-                }
-                scope.set(s, popStack())
-            }
-            Opcode.BRANCH_IF_FALSE -> handleBranchIf(false, insn.immediate)
-            Opcode.BRANCH_IF_TRUE -> handleBranchIf(true, insn.immediate)
-            Opcode.DECLARE_VARIABLE_IMMUTABLE -> {
-                val s = code.sConstArr.getOrElse(insn.immediate) {
-                    throw MalformedBytecodeException(
-                        "Tried to load string constant ${insn.immediate} which wasn't defined.",
-                        control.stackTrace()
-                    )
-                }
-                scope.define(s, false)
-            }
-            Opcode.DECLARE_VARIABLE_MUTABLE -> {
-                val s = code.sConstArr.getOrElse(insn.immediate) {
-                    throw MalformedBytecodeException(
-                        "Tried to load string constant ${insn.immediate} which wasn't defined.",
-                        control.stackTrace()
-                    )
-                }
-                scope.define(s, true)
-            }
-            Opcode.GET_MEMBER_PROPERTY -> handleGetMemberProperty(insn.immediate)
-            Opcode.GET_SUBSCRIPT -> handleGetSubscript(insn.immediate)
-            Opcode.GET_VARIABLE -> {
-                val s = code.sConstArr.getOrElse(insn.immediate) {
-                    throw MalformedBytecodeException(
-                        "Tried to load string constant ${insn.immediate} which wasn't defined.",
-                        control.stackTrace()
-                    )
-                }
-                stack.add(scope.get(s))
-            }
-            Opcode.INVOKE -> handleInvoke(insn.immediate)
-            Opcode.INVOKE_LOCAL -> handleInvokeLocal(insn.immediate)
-            Opcode.INVOKE_MEMBER -> handleInvokeMember(insn.immediate)
-            Opcode.INVOKE_EXTENSION -> handleInvokeExtension(insn.immediate)
-            Opcode.JUMP -> {
-                next = node.findJump(insn.immediate)?.at ?: throw MalformedBytecodeException(
-                    "Tried to jump to label ${insn.immediate} which wasn't defined.",
-                    control.stackTrace()
-                )
-            }
-            Opcode.LOAD_DECIMAL -> {
-                val l = code.lConstArr.getOrElse(insn.immediate) {
-                    throw MalformedBytecodeException(
-                        "Tried to load number constant ${insn.immediate} which wasn't defined.",
-                        control.stackTrace()
-                    )
-                }
-                stack.add(LDecimal(Double.fromBits(l)))
-            }
-            Opcode.LOAD_INTEGER -> {
-                val i = code.lConstArr.getOrElse(insn.immediate) {
-                    throw MalformedBytecodeException(
-                        "Tried to load number constant ${insn.immediate} which wasn't defined.",
-                        control.stackTrace()
-                    )
-                }
-                stack.add(LInteger(i))
-            }
-            Opcode.LOAD_STRING -> {
-                val s = code.sConstArr.getOrElse(insn.immediate) {
-                    throw MalformedBytecodeException(
-                        "Tried to load string constant ${insn.immediate} which wasn't defined.",
-                        control.stackTrace()
-                    )
-                }
-                stack.add(LString(s))
-            }
-            Opcode.NEW_FUNCTION -> {
-                val f = code.funcArr.getOrElse(insn.immediate) {
-                    throw MalformedBytecodeException(
-                        "Tried to load function ${insn.immediate} which wasn't defined.",
-                        control.stackTrace()
-                    )
-                }
-                stack.add(LCompiledFunction(code, f, runtime, scope))
-            }
-            Opcode.PUSH_CHAR -> {
-                val value = insn.immediate.toChar()
-                if (value != (-1).toChar()) {
-                    stack.add(LString(value.toString()))
-                } else {
-                    stack.add(LString(""))
-                }
-            }
-            Opcode.PUSH_DECIMAL -> {
-                stack.add(LDecimal(insn.immediate.toDouble()))
-            }
-            Opcode.PUSH_INTEGER -> {
-                stack.add(LInteger(insn.immediate.toLong()))
-            }
-            Opcode.PUSH_EXCEPTION_HANDLING -> {
-                exceptionHandlers.add(
-                    ExceptionHandler(
-                        stack.size,
-                        node.findJump(insn.immediate)?.at ?: throw MalformedBytecodeException(
-                            "Tried to compute value of exception handling's catch label ${insn.immediate} which wasn't defined.",
-                            control.stackTrace()
-                        )
-                    )
-                )
-            }
-            Opcode.SET_MEMBER_PROPERTY -> handleSetMemberProperty(insn.immediate)
-            Opcode.SET_SUBSCRIPT -> handleSetSubscript(insn.immediate)
-            Opcode.SET_VARIABLE -> {
-                val s = code.sConstArr.getOrElse(insn.immediate) {
-                    throw MalformedBytecodeException(
-                        "Tried to load string constant ${insn.immediate} which wasn't defined.",
-                        control.stackTrace()
-                    )
-                }
-                scope.set(s, popStack())
-            }
+    public override fun onReturn(value: LAny) {
+        val handler = this.customReturn
+        if (handler != null) {
+            customReturn = null
+            handler(value)
+        } else {
+            stack.add(value)
         }
     }
 
-    override fun onReturn(value: LAny) {
-        stack.add(value)
-    }
-
-    override fun onThrow(value: LAny) {
+    public override fun onThrow(value: LAny) {
         val handler = exceptionHandlers.removeLastOrNull()
         if (handler == null) {
             control.onThrow(value)
@@ -297,7 +68,7 @@ public class NodeExecutionContext(
         stack.add(value)
     }
 
-    override fun trace(): StackTrace? {
+    public override fun trace(): StackTrace? {
         val label = node.findSect(next - 1) ?: return null
         val section = code.sectArr.getOrElse(label.index) { return null }
         val s = code.sConstArr.getOrElse(section.nameConst) {
@@ -308,8 +79,6 @@ public class NodeExecutionContext(
         }
         return StackTrace(functionName, s, section.line, section.column)
     }
-
-    public data class ExceptionHandler(val keepOnStack: Int, val onException: Int)
 
     private fun popStack(): LAny {
         return stack.removeLastOrNull() ?: throw MalformedBytecodeException(
@@ -325,23 +94,570 @@ public class NodeExecutionContext(
         )
     }
 
-    // handlers
+    private fun setupInvocation(thisValue: LAny?, function: LAny, args: List<LAny> = emptyList()) {
+        if (function is LFunction) {
+            control.push(function.setupContext(control, thisValue, args, runtime))
+            return
+        }
+        if (function is LMetaObject) {
+            val metaInvoke = function.access(LString("invoke"))
+            if (metaInvoke is LFunction) {
+                control.push(metaInvoke.setupContext(control, function, args, runtime))
+                return
+            }
+        }
+        runtime.customInvocation(control, thisValue, function, args)
+    }
 
-    private fun handleBranchIf(value: Boolean, labelCode: Int) {
-        // TODO handle metaobjects
-        // Difficulty: hard (post-function call logic is required)
-        // Fix: create a BranchExecutionContext that can be used to handle this.
-        // Other fix: replace the LeanContext onReturn/onThrow logic with a per-case.
-        // Possible workaround: would decrementing the PC once (making this be re-executed) make the VM handle this?
-        if (popStack().truth() == value) {
-            next = node.findJump(labelCode)?.at ?: throw MalformedBytecodeException(
-                "Tried to branch to label $labelCode which wasn't defined.",
+    protected override fun handleArrayInsert() {
+        val value = popStack()
+        val array = peekStack()
+        if (array !is LArray) {
+            throw MalformedBytecodeException(
+                "Tried to arrayInsert value '$value' into '$array' which is of type '${array.type}'.",
                 control.stackTrace()
             )
         }
+        array.value.add(value)
     }
 
-    private fun handleGetMemberProperty(nameConst: Int) {
+    protected override fun handleDup() {
+        stack.add(peekStack())
+    }
+
+    protected override fun handleNewArray() {
+        stack.add(LArray())
+    }
+
+    protected override fun handleNewObject() {
+        stack.add(LObject())
+    }
+
+    protected override fun handleObjectInsert() {
+        val value = popStack()
+        val key = popStack()
+        val obj = peekStack()
+        if (obj !is LObject) {
+            throw MalformedBytecodeException(
+                "Tried to objectInsert key '$key' and value '$value' into '$obj' which is of type '${obj.type}'.",
+                control.stackTrace()
+            )
+        }
+        obj.value[key] = value
+    }
+
+    protected override fun handlePop() {
+        popStack()
+    }
+
+    protected override fun handlePopScope() {
+        scope = scope.parent ?: throw MalformedBytecodeException(
+            "Tried to pop scope but encountered a root scope.",
+            control.stackTrace()
+        )
+    }
+
+    protected override fun handlePopExceptionHandling() {
+        exceptionHandlers.removeLastOrNull() ?: throw MalformedBytecodeException(
+            "Tried execute POP_EXCEPTION_HANDLING instruction but found no exception handler.",
+            control.stackTrace()
+        )
+    }
+
+    protected override fun handlePushNull() {
+        stack.add(LNull)
+    }
+
+    protected override fun handlePushScope() {
+        scope = Scope(scope)
+    }
+
+    protected override fun handlePushThis() {
+        stack.add(thisValue ?: runtime.customThisValue(control))
+    }
+
+    protected override fun handleReturn() {
+        control.onReturn(popStack())
+    }
+
+    protected override fun handleThrow() {
+        onThrow(popStack())
+    }
+
+    protected override fun handleTypeof() {
+        stack.add(LString(popStack().type))
+    }
+
+    protected override fun handlePushBoolean(b: Boolean) {
+        stack.add(LBoolean.of(b))
+    }
+
+    protected override fun handlePositive() {
+        val target = popStack()
+        if (target is LNumber) {
+            stack.add(+target)
+            return
+        }
+        if (target is LMetaObject) {
+            val property = target.access(LString("unaryPlus"))
+            if (property is LFunction) {
+                control.push(property.setupContext(control, target, emptyList(), runtime))
+                return
+            }
+            if (property != null) {
+                stack.add(property)
+                return
+            }
+        }
+        runtime.customPositiveOperation(control, target)
+    }
+
+    protected override fun handleNegative() {
+        val target = popStack()
+        if (target is LNumber) {
+            stack.add(-target)
+            return
+        }
+        if (target is LMetaObject) {
+            val property = target.access(LString("unaryMinus"))
+            if (property is LFunction) {
+                control.push(property.setupContext(control, target, emptyList(), runtime))
+                return
+            }
+            if (property != null) {
+                stack.add(property)
+                return
+            }
+        }
+        runtime.customNegativeOperation(control, target)
+    }
+
+    protected override fun handleTruth() {
+        val target = popStack()
+        if (target is LMetaObject) {
+            val property = target.access(LString("truth"))
+            if (property is LFunction) {
+                customReturn = {
+                    if (it is LMetaObject) {
+                        throw LeanRuntimeException(
+                            "Meta object '$target' returned a meta object as 'truth'.",
+                            control.stackTrace()
+                        )
+                    }
+                    stack.add(LBoolean.of(it.truth()))
+                }
+                control.push(property.setupContext(control, target, emptyList(), runtime))
+                return
+            } else if (property != null) {
+                if (property is LMetaObject) {
+                    throw LeanRuntimeException(
+                        "Meta object '$target' has a meta object as 'truth'.",
+                        control.stackTrace()
+                    )
+                }
+                stack.add(LBoolean.of(property.truth()))
+                return
+            }
+        }
+    }
+
+    protected override fun handleNot() {
+        val target = popStack()
+        if (target is LMetaObject) {
+            val property = target.access(LString("truth"))
+            if (property is LFunction) {
+                customReturn = {
+                    if (it is LMetaObject) {
+                        throw LeanRuntimeException(
+                            "Meta object '$target' returned a meta object as 'truth'.",
+                            control.stackTrace()
+                        )
+                    }
+                    stack.add(LBoolean.of(!it.truth()))
+                }
+                control.push(property.setupContext(control, target, emptyList(), runtime))
+                return
+            } else if (property != null) {
+                if (property is LMetaObject) {
+                    throw LeanRuntimeException(
+                        "Meta object '$target' has a meta object as 'truth'.",
+                        control.stackTrace()
+                    )
+                }
+                stack.add(LBoolean.of(!property.truth()))
+                return
+            }
+        }
+    }
+
+    protected override fun handleAdd() {
+        val right = popStack()
+        val left = popStack()
+        if (left is LString || right is LString) {
+            stack.add(LString(left.toString() + right.toString()))
+            return
+        }
+        if (left is LArray && right is LArray) {
+            stack.add(LArray((left.value + right.value).toMutableList()))
+            return
+        }
+        if (left is LNumber && right is LNumber) {
+            stack.add(left + right)
+            return
+        }
+        if (left is LMetaObject) {
+            val property = left.access(LString("add"))
+            if (property is LFunction) {
+                control.push(property.setupContext(control, left, listOf(right), runtime))
+                return
+            }
+            if (property != null) {
+                stack.add(property)
+                return
+            }
+        }
+        stack.add(runtime.customAddOperation(control, left, right))
+    }
+
+    protected override fun handleSubtract() {
+        val right = popStack()
+        val left = popStack()
+        if (left is LNumber && right is LNumber) {
+            stack.add(left - right)
+            return
+        }
+        if (left is LMetaObject) {
+            val property = left.access(LString("subtract"))
+            if (property is LFunction) {
+                control.push(property.setupContext(control, left, listOf(right), runtime))
+                return
+            }
+            if (property != null) {
+                stack.add(property)
+                return
+            }
+        }
+        stack.add(runtime.customSubtractOperation(control, left, right))
+    }
+
+    protected override fun handleMultiply() {
+        val right = popStack()
+        val left = popStack()
+        if (left is LString && right is LInteger) {
+            stack.add(LString(left.value.repeat(right.value.toInt())))
+        }
+        if (left is LNumber && right is LNumber) {
+            stack.add(left * right)
+            return
+        }
+        if (left is LMetaObject) {
+            val property = left.access(LString("multiply"))
+            if (property is LFunction) {
+                control.push(property.setupContext(control, left, listOf(right), runtime))
+                return
+            }
+            if (property != null) {
+                stack.add(property)
+                return
+            }
+        }
+        stack.add(runtime.customMultiplyOperation(control, left, right))
+    }
+
+    protected override fun handleDivide() {
+        val right = popStack()
+        val left = popStack()
+        if (left is LNumber && right is LNumber) {
+            stack.add(left / right)
+            return
+        }
+        if (left is LMetaObject) {
+            val property = left.access(LString("divide"))
+            if (property is LFunction) {
+                control.push(property.setupContext(control, left, listOf(right), runtime))
+                return
+            }
+            if (property != null) {
+                stack.add(property)
+                return
+            }
+        }
+        stack.add(runtime.customDivideOperation(control, left, right))
+    }
+
+    protected override fun handleRemaining() {
+        val right = popStack()
+        val left = popStack()
+        if (left is LNumber && right is LNumber) {
+            stack.add(left % right)
+            return
+        }
+        if (left is LMetaObject) {
+            val property = left.access(LString("remaining"))
+            if (property is LFunction) {
+                control.push(property.setupContext(control, left, listOf(right), runtime))
+                return
+            }
+            if (property != null) {
+                stack.add(property)
+                return
+            }
+        }
+        stack.add(runtime.customRemainingOperation(control, left, right))
+    }
+
+    protected override fun handleEquals() {
+        val right = popStack()
+        val left = popStack()
+        if (left is LMetaObject) {
+            val metaEquals = left.value.getOrElse(LString("equals")) {
+                stack.add(LBoolean.of(left.value == right))
+                return
+            }
+            if (metaEquals is LFunction) {
+                this.customReturn = {
+                    if (it is LMetaObject) {
+                        throw LeanRuntimeException(
+                            "Meta object '$left' returned a meta object as 'equals'.",
+                            control.stackTrace()
+                        )
+                    }
+                    stack.add(LBoolean.of(it.truth()))
+                }
+                control.push(metaEquals.setupContext(control, left, listOf(right), runtime))
+                return
+            }
+            if (metaEquals is LMetaObject) {
+                throw LeanRuntimeException("Meta object '$left' has a 'equals' meta object.", control.stackTrace())
+            }
+            stack.add(LBoolean.of(metaEquals == right))
+            return
+        }
+        if (right is LMetaObject) {
+            val metaEquals = right.value.getOrElse(LString("equals")) {
+                stack.add(LBoolean.of(left == right.value))
+                return
+            }
+            if (metaEquals is LFunction) {
+                this.customReturn = {
+                    if (it is LMetaObject) {
+                        throw LeanRuntimeException(
+                            "Meta object '$right' returned a meta object as 'equals'.",
+                            control.stackTrace()
+                        )
+                    }
+                    stack.add(LBoolean.of(it.truth()))
+                }
+                control.push(metaEquals.setupContext(control, right, listOf(left), runtime))
+                return
+            }
+            if (metaEquals is LMetaObject) {
+                throw LeanRuntimeException("Meta object '$right' has a 'equals' meta object.", control.stackTrace())
+            }
+            stack.add(LBoolean.of(metaEquals == left))
+            return
+        }
+        stack.add(LBoolean.of(right == left))
+    }
+
+    protected override fun handleNotEquals() {
+        val right = popStack()
+        val left = popStack()
+        if (left is LMetaObject) {
+            val metaEquals = left.value.getOrElse(LString("equals")) {
+                stack.add(LBoolean.of(left.value != right))
+                return
+            }
+            if (metaEquals is LFunction) {
+                this.customReturn = {
+                    if (it is LMetaObject) {
+                        throw LeanRuntimeException(
+                            "Meta object '$left' returned a meta object as 'equals'.",
+                            control.stackTrace()
+                        )
+                    }
+                    stack.add(LBoolean.of(!it.truth()))
+                }
+                control.push(metaEquals.setupContext(control, left, listOf(right), runtime))
+                return
+            }
+            if (metaEquals is LMetaObject) {
+                throw LeanRuntimeException("Meta object '$left' has a 'equals' meta object.", control.stackTrace())
+            }
+            stack.add(LBoolean.of(metaEquals != right))
+            return
+        }
+        if (right is LMetaObject) {
+            val metaEquals = right.value.getOrElse(LString("equals")) {
+                stack.add(LBoolean.of(left != right.value))
+                return
+            }
+            if (metaEquals is LFunction) {
+                this.customReturn = {
+                    if (it is LMetaObject) {
+                        throw LeanRuntimeException(
+                            "Meta object '$right' returned a meta object as 'equals'.",
+                            control.stackTrace()
+                        )
+                    }
+                    stack.add(LBoolean.of(!it.truth()))
+                }
+                control.push(metaEquals.setupContext(control, right, listOf(left), runtime))
+                return
+            }
+            if (metaEquals is LMetaObject) {
+                throw LeanRuntimeException("Meta object '$right' has a 'equals' meta object.", control.stackTrace())
+            }
+            stack.add(LBoolean.of(metaEquals != left))
+            return
+        }
+        stack.add(LBoolean.of(right != left))
+    }
+
+    protected override fun handleComparison(comparison: Comparison) {
+        val right = popStack()
+        val left = popStack()
+        if (left is LString && right is LString) {
+            stack.add(LBoolean.of(comparison.block(left.value.compareTo(right.value))))
+            return
+        }
+        if (left is LNumber && right is LNumber) {
+            stack.add(LBoolean.of(comparison.block(left.compareTo(right))))
+            return
+        }
+        if (left is LMetaObject) {
+            val operatorProperty = left.access(LString(comparison.name.lowercase()))
+            if (operatorProperty is LFunction) {
+                control.push(operatorProperty.setupContext(control, left, listOf(right), runtime))
+                return
+            } else if (operatorProperty != null) {
+                stack.add(operatorProperty)
+                return
+            }
+
+            val comparingProperty = left.access(LString("compareTo"))
+            if (comparingProperty is LFunction) {
+                customReturn = {
+                    if (it is LMetaObject) {
+                        throw LeanRuntimeException(
+                            "Meta object '$left' returned a meta object as 'compareTo'.",
+                            control.stackTrace()
+                        )
+                    }
+                    if (it !is LNumber) {
+                        throw LeanRuntimeException(
+                            "Meta object '$left' returned a non-number as 'compareTo'.",
+                            control.stackTrace()
+                        )
+                    }
+                    stack.add(LBoolean.of(comparison.block(it.decimalValue.sign.toInt())))
+                }
+                control.push(comparingProperty.setupContext(control, left, listOf(right), runtime))
+                return
+            }
+        }
+        stack.add(runtime.customComparison(control, comparison, left, right))
+    }
+
+    protected override fun handleIn() {
+        val right = popStack()
+        val left = popStack()
+        if (right is LArray) {
+            stack.add(LBoolean.of(left in right.value))
+            return
+        }
+        if (right is LObject) {
+            stack.add(LBoolean.of(left in right.value))
+            return
+        }
+        if (right is LMetaObject) {
+            val property = right.access(LString("contains"))
+            if (property is LFunction) {
+                control.push(property.setupContext(control, right, listOf(left), runtime))
+                return
+            }
+        }
+        stack.add(LBoolean.of(runtime.customInOperation(control, left, right)))
+    }
+
+    protected override fun handleRange() {
+        val right = popStack()
+        val left = popStack()
+        if (left is LInteger && right is LInteger) {
+            stack.add(left..right)
+            return
+        }
+        if (left is LMetaObject) {
+            val property = left.access(LString("rangeTo"))
+            if (property is LFunction) {
+                control.push(property.setupContext(control, left, listOf(right), runtime))
+                return
+            }
+        }
+        stack.add(runtime.customRangeOperation(control, left, right))
+    }
+
+    protected override fun handleAssign(immediate: Int) {
+        val s = code.sConstArr.getOrElse(immediate) {
+            throw MalformedBytecodeException(
+                "Tried to load string constant $immediate which wasn't defined.",
+                control.stackTrace()
+            )
+        }
+        scope.set(s, popStack())
+    }
+
+    protected override fun handleBranchIf(b: Boolean, labelCode: Int) {
+        val target = popStack()
+        val i = node.findJump(labelCode)?.at ?: throw MalformedBytecodeException(
+            "Tried to branch to label $labelCode which wasn't defined.",
+            control.stackTrace()
+        )
+        if (target is LMetaObject) {
+            val property = target.access(LString("truth"))
+            if (property is LFunction) {
+                customReturn = {
+                    if (it is LMetaObject) {
+                        throw LeanRuntimeException(
+                            "Meta object '$target' returned a meta object as 'truth'.",
+                            control.stackTrace()
+                        )
+                    }
+                    if (it.truth() == b) {
+                        next = i
+                    }
+                }
+                control.push(property.setupContext(control, target, emptyList(), runtime))
+                return
+            } else if (property != null) {
+                if (property is LMetaObject) {
+                    throw LeanRuntimeException(
+                        "Meta object '$target' has a meta object as 'truth'.",
+                        control.stackTrace()
+                    )
+                }
+                if (property.truth() == b) {
+                    next = i
+                }
+                return
+            }
+        }
+        if (target.truth() == b) {
+            next = i
+        }
+    }
+
+    protected override fun handleDeclareVariable(mutable: Boolean, immediate: Int) {
+        val s = code.sConstArr.getOrElse(immediate) {
+            throw MalformedBytecodeException(
+                "Tried to load string constant $immediate which wasn't defined.",
+                control.stackTrace()
+            )
+        }
+        scope.define(s, mutable)
+    }
+
+    protected override fun handleGetMemberProperty(nameConst: Int) {
         val target = popStack()
         val name = code.sConstArr.getOrElse(nameConst) {
             throw MalformedBytecodeException(
@@ -354,15 +670,24 @@ public class NodeExecutionContext(
                 "Tried to access member '$name' of null target.", control.stackTrace()
             )
         }
-
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
+        if (target is LMetaObject) {
+            val property = target.access(LString("getMember"))
+            if (property is LFunction) {
+                control.push(property.setupContext(control, target, listOf(LString(name)), runtime))
+                return
+            }
+        }
         stack.add(runtime.getMemberProperty(control, target, name))
     }
 
-    private fun handleGetSubscript(size: Int) {
+    protected override fun handleGetSubscript(size: Int) {
         val arguments = List(size) { popStack() }.reversed()
         val parent = popStack()
+        if (parent is LNull) {
+            throw LeanNullPointerException(
+                "Tried to access subscript of null target.", control.stackTrace()
+            )
+        }
         if (parent is LArray && size == 1) {
             val arg = arguments.first()
             val list = parent.value
@@ -461,22 +786,33 @@ public class NodeExecutionContext(
                 return
             }
         }
-
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
+        if (parent is LMetaObject) {
+            val property = parent.access(LString("getSubscript"))
+            if (property is LFunction) {
+                control.push(property.setupContext(control, parent, arguments, runtime))
+                return
+            }
+        }
         stack.add(runtime.customGetSubscript(control, parent, arguments))
     }
 
-    private fun handleInvoke(size: Int) {
-        val arguments = List(size) { popStack() }.reversed()
-        val function = popStack()
-        invocation(null, function, arguments)
+    protected override fun handleGetVariable(immediate: Int) {
+        val s = code.sConstArr.getOrElse(immediate) {
+            throw MalformedBytecodeException(
+                "Tried to load string constant $immediate which wasn't defined.",
+                control.stackTrace()
+            )
+        }
+        stack.add(scope.get(s))
     }
 
-    private fun handleInvokeLocal(immediate: Int) {
-        val nameConst: Int = immediate shr 16
-        val size: Int = immediate and 0xff
+    protected override fun handleInvoke(size: Int) {
+        val arguments = List(size) { popStack() }.reversed()
+        val function = popStack()
+        setupInvocation(null, function, arguments)
+    }
 
+    protected override fun handleInvokeLocal(nameConst: Int, size: Int) {
         val arguments = List(size) { popStack() }.reversed()
         val s = code.sConstArr.getOrElse(nameConst) {
             throw MalformedBytecodeException(
@@ -484,13 +820,10 @@ public class NodeExecutionContext(
                 control.stackTrace()
             )
         }
-        invocation(null, scope.get(s), arguments)
+        setupInvocation(null, scope.get(s), arguments)
     }
 
-    private fun handleInvokeMember(immediate: Int) {
-        val nameConst: Int = immediate shr 16
-        val size: Int = immediate and 0xff
-
+    protected override fun handleInvokeMember(nameConst: Int, size: Int) {
         val arguments = List(size) { popStack() }.reversed()
         val parent = popStack()
         val s = code.sConstArr.getOrElse(nameConst) {
@@ -499,17 +832,89 @@ public class NodeExecutionContext(
                 control.stackTrace()
             )
         }
-        invocation(parent, runtime.getMemberProperty(control, parent, s), arguments)
+        setupInvocation(parent, runtime.getMemberProperty(control, parent, s), arguments)
     }
 
-    private fun handleInvokeExtension(size: Int) {
+    protected override fun handleInvokeExtension(size: Int) {
         val arguments = List(size) { popStack() }.reversed()
         val function = popStack()
         val target = popStack()
-        invocation(target, function, arguments)
+        setupInvocation(target, function, arguments)
     }
 
-    private fun handleSetMemberProperty(nameConst: Int) {
+    protected override fun handleJump(immediate: Int) {
+        next = node.findJump(immediate)?.at ?: throw MalformedBytecodeException(
+            "Tried to jump to label $immediate which wasn't defined.",
+            control.stackTrace()
+        )
+    }
+
+    protected override fun handleLoadDecimal(immediate: Int) {
+        val l = code.lConstArr.getOrElse(immediate) {
+            throw MalformedBytecodeException(
+                "Tried to load number constant $immediate which wasn't defined.",
+                control.stackTrace()
+            )
+        }
+        stack.add(LDecimal(Double.fromBits(l)))
+    }
+
+    protected override fun handleLoadInteger(immediate: Int) {
+        val i = code.lConstArr.getOrElse(immediate) {
+            throw MalformedBytecodeException(
+                "Tried to load number constant $immediate which wasn't defined.",
+                control.stackTrace()
+            )
+        }
+        stack.add(LInteger(i))
+    }
+
+    protected override fun handleLoadString(immediate: Int) {
+        val s = code.sConstArr.getOrElse(immediate) {
+            throw MalformedBytecodeException(
+                "Tried to load string constant $immediate which wasn't defined.",
+                control.stackTrace()
+            )
+        }
+        stack.add(LString(s))
+    }
+
+    protected override fun handleNewFunction(immediate: Int) {
+        val f = code.funcArr.getOrElse(immediate) {
+            throw MalformedBytecodeException(
+                "Tried to load function $immediate which wasn't defined.",
+                control.stackTrace()
+            )
+        }
+        stack.add(LCompiledFunction(code, f, runtime, scope))
+    }
+
+    protected override fun handlePushChar(immediate: Int) {
+        val value = immediate.toChar()
+        stack.add(LString(if (value != (-1).toChar()) value.toString() else ""))
+    }
+
+    protected override fun handlePushDecimal(immediate: Int) {
+        stack.add(LDecimal(immediate.toDouble()))
+    }
+
+    protected override fun handlePushInteger(immediate: Int) {
+        stack.add(LInteger(immediate.toLong()))
+    }
+
+    protected override fun handlePushExceptionHandling(immediate: Int) {
+        exceptionHandlers.add(
+            ExceptionHandler(
+                stack.size,
+                node.findJump(immediate)?.at ?: throw MalformedBytecodeException(
+                    "Tried to compute value of exception handling's catch label $immediate which wasn't defined.",
+                    control.stackTrace()
+                )
+            )
+        )
+    }
+
+    protected override fun handleSetMemberProperty(nameConst: Int) {
         val value = popStack()
         val name = code.sConstArr.getOrElse(nameConst) {
             throw MalformedBytecodeException(
@@ -518,19 +923,33 @@ public class NodeExecutionContext(
             )
         }
         val parent = popStack()
+        if (parent is LNull) {
+            throw LeanNullPointerException(
+                "Tried to access member '$name' of null target.", control.stackTrace()
+            )
+        }
         if (parent is LObject) {
             parent.value[LString(name)] = value
         }
-
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
+        if (parent is LMetaObject) {
+            val property = parent.access(LString("setMember"))
+            if (property is LFunction) {
+                control.push(property.setupContext(control, parent, listOf(LString(name), value), runtime))
+                return
+            }
+        }
         runtime.setMemberProperty(control, parent, name, value)
     }
 
-    private fun handleSetSubscript(size: Int) {
+    protected override fun handleSetSubscript(size: Int) {
         val value = popStack()
         val arguments = List(size) { popStack() }.reversed()
         val parent = popStack()
+        if (parent is LNull) {
+            throw LeanNullPointerException(
+                "Tried to access subscript of null target.", control.stackTrace()
+            )
+        }
         if (parent is LArray && size == 1) {
             val arg = arguments.first()
             if (arg is LInteger) {
@@ -543,155 +962,25 @@ public class NodeExecutionContext(
             parent.value[arg] = value
             return
         }
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
+        if (parent is LMetaObject) {
+            val property = parent.access(LString("setSubscript"))
+            if (property is LFunction) {
+                control.push(property.setupContext(control, parent, arguments + value, runtime))
+                return
+            }
+        }
         runtime.customSetSubscript(control, parent, arguments, value)
     }
 
-    private fun handleAddOperation() {
-        val right = popStack()
-        val left = popStack()
-        if (left is LString || right is LString) {
-            stack.add(LString(left.toString() + right.toString()))
-            return
+    protected override fun handleSetVariable(immediate: Int) {
+        val s = code.sConstArr.getOrElse(immediate) {
+            throw MalformedBytecodeException(
+                "Tried to load string constant $immediate which wasn't defined.",
+                control.stackTrace()
+            )
         }
-        if (left is LArray && right is LArray) {
-            stack.add(LArray((left.value + right.value).toMutableList()))
-            return
-        }
-        if (left is LNumber && right is LNumber) {
-            stack.add(left + right)
-            return
-        }
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
-        stack.add(runtime.customAddOperation(control, left, right))
+        scope.set(s, popStack())
     }
 
-    private fun handleDivideOperation() {
-        val right = popStack()
-        val left = popStack()
-        if (left is LNumber && right is LNumber) {
-            stack.add(left / right)
-            return
-        }
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
-        stack.add(runtime.customDivideOperation(control, left, right))
-    }
-
-    private fun handleMultiplyOperation() {
-        val right = popStack()
-        val left = popStack()
-        if (left is LString && right is LInteger) {
-            stack.add(LString(left.value.repeat(right.value.toInt())))
-        }
-        if (left is LNumber && right is LNumber) {
-            stack.add(left * right)
-            return
-        }
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
-        stack.add(runtime.customMultiplyOperation(control, left, right))
-    }
-
-    private fun handleRangeOperation() {
-        val right = popStack()
-        val left = popStack()
-        if (left is LInteger && right is LInteger) {
-            stack.add(left..right)
-            return
-        }
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
-        stack.add(runtime.customRangeOperation(control, left, right))
-    }
-
-    private fun handleRemainingOperation() {
-        val right = popStack()
-        val left = popStack()
-        if (left is LNumber && right is LNumber) {
-            stack.add(left % right)
-            return
-        }
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
-        stack.add(runtime.customRemainingOperation(control, left, right))
-    }
-
-    private fun handleSubtractOperation() {
-        val right = popStack()
-        val left = popStack()
-        if (left is LNumber && right is LNumber) {
-            stack.add(left - right)
-            return
-        }
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
-        stack.add(runtime.customSubtractOperation(control, left, right))
-    }
-
-    private fun handleComparison(comparison: Comparison) {
-        val right = popStack()
-        val left = popStack()
-        if (left is LString && right is LString) {
-            stack.add(LBoolean.of(comparison.block(left.value.compareTo(right.value))))
-            return
-        }
-        if (left is LNumber && right is LNumber) {
-            stack.add(LBoolean.of(comparison.block(left.compareTo(right))))
-            return
-        }
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
-        stack.add(runtime.customComparison(control, comparison, left, right))
-    }
-
-    private fun handleInOperation() {
-        val right = popStack()
-        val left = popStack()
-        if (right is LArray) {
-            stack.add(LBoolean.of(left in right.value))
-            return
-        }
-        if (right is LObject) {
-            stack.add(LBoolean.of(left in right.value))
-            return
-        }
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
-        stack.add(LBoolean.of(runtime.customInOperation(control, left, right)))
-    }
-
-    private fun handleNegativeOperation() {
-        val target = popStack()
-        if (target is LNumber) {
-            stack.add(-target)
-            return
-        }
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
-        stack.add(runtime.customNegativeOperation(control, target))
-    }
-
-    private fun handlePositiveOperation() {
-        val target = popStack()
-        if (target is LNumber) {
-            stack.add(+target)
-            return
-        }
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
-        stack.add(runtime.customPositiveOperation(control, target))
-    }
-
-    private fun invocation(thisValue: LAny?, function: LAny, args: List<LAny>) {
-        if (function is LFunction) {
-            control.push(function.setupContext(control, thisValue, args, runtime))
-            return
-        }
-        // TODO handle metaobjects
-        // Difficulty: easy (adding a function context will be enough)
-        runtime.customInvocation(control, thisValue, function, args)
-    }
+    public data class ExceptionHandler(val keepOnStack: Int, val onException: Int)
 }

@@ -1,6 +1,7 @@
 package net.notjustanna.leanvm.runtimes.functions
 
 import net.notjustanna.leanvm.types.LAny
+import net.notjustanna.leanvm.types.LMetaObject
 import net.notjustanna.leanvm.types.LNativeFunction
 import net.notjustanna.leanvm.types.LObject
 
@@ -26,6 +27,6 @@ internal object FnCreateMetaObject : LNativeFunction("createMetaObject") {
             throw IllegalArgumentException("createMetaObject() can only be called on objects.")
         }
 
-        TODO("Implement meta objects")
+        return LMetaObject(value.value)
     }
 }
