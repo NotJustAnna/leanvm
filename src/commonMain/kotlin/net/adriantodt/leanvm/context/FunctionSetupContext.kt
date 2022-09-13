@@ -64,10 +64,10 @@ public class FunctionSetupContext(
                         control,
                         function.source,
                         function.name ?: "<anonymous function>",
+                        thisValue,
                         runtime,
                         scope,
                         paramBody,
-                        thisValue
                     )
                 )
                 return
@@ -84,10 +84,10 @@ public class FunctionSetupContext(
                 control,
                 function.source,
                 function.name ?: "<anonymous function>",
+                thisValue,
                 runtime,
                 Scope(scope),
                 body,
-                thisValue
             )
         )
     }

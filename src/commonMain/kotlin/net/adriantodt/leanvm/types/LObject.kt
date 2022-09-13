@@ -19,3 +19,4 @@ public data class LObject(val value: MutableMap<LAny, LAny> = mutableMapOf()) : 
         }
     }
 }
+

@@ -1,6 +1,7 @@
 package net.adriantodt.leanvm.runtimes.functions
 
 import net.adriantodt.leanvm.types.LAny
+import net.adriantodt.leanvm.types.LMetaObject
 import net.adriantodt.leanvm.types.LNativeFunction
 import net.adriantodt.leanvm.types.LObject
 
@@ -26,6 +27,6 @@ internal object FnCreateMetaObject : LNativeFunction("createMetaObject") {
             throw IllegalArgumentException("createMetaObject() can only be called on objects.")
         }
 
-        TODO("Implement meta objects")
+        return LMetaObject(value.value)
     }
 }

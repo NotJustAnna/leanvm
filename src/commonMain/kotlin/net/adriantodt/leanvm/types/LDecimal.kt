@@ -4,7 +4,6 @@ public data class LDecimal(val value: Double) : LNumber() {
     override val type: String get() = "decimal"
 
     override val decimalValue: Double get() = value
-
     override fun compareTo(other: LNumber): Int {
         return value.compareTo(other.decimalValue)
     }

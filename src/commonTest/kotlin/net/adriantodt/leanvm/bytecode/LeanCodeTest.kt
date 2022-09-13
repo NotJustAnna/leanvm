@@ -21,7 +21,7 @@ class LeanCodeTest {
         val builder = LeanCodeBuilder()
         val node = builder.newNodeBuilder()
         node.pushIntegerInsn(1L)
-        repeat(2) {
+        repeat(200) {
             node.pushIntegerInsn(1L)
             node.addInsn()
             node.pushIntegerInsn(1L)

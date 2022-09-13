@@ -6,11 +6,12 @@ plugins {
 }
 
 group = "net.adriantodt"
-version = "0.2.0"
+version = "0.3.0"
 
 repositories {
     mavenCentral()
     maven { url = uri("https://maven.cafeteria.dev/releases") }
+    maven { url = uri("https://maven.adriantodt.net/releases") }
 }
 
 kotlin {
