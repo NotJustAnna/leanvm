@@ -6,7 +6,19 @@ plugins {
 }
 
 group = "net.adriantodt"
-version = "0.3.0"
+version = "0.4.0"
+
+run {
+    fun String.takeIfValid() = takeIf { it.isNotBlank() && it != "null" }
+    fun String.maybeAddSuffix(suffix: String) = if (endsWith(suffix)) this else this + suffix
+
+    val v = env.fetchOrNull("VERSION")?.takeIfValid()
+        ?: System.getenv("VERSION")?.takeIfValid()
+        ?: project.version.toString()
+
+    val snapshot = (env.fetchOrNull("SNAPSHOT") ?: System.getenv("SNAPSHOT") ?: "false").toBoolean()
+    project.version = if (snapshot) v.maybeAddSuffix("-SNAPSHOT") else v
+}
 
 repositories {
     mavenCentral()
@@ -99,7 +111,11 @@ publishing {
 
     repositories {
         maven {
-            url = uri("https://maven.adriantodt.net/releases")
+            url = if (project.version.toString().endsWith("-SNAPSHOT")) {
+                uri("https://maven.adriantodt.net/snapshots")
+            } else {
+                uri("https://maven.adriantodt.net/releases")
+            }
 
             credentials {
                 username = env.fetchOrNull("MAVEN_USERNAME") ?: System.getenv("MAVEN_USERNAME")
