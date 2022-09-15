@@ -9,7 +9,7 @@ group = "net.notjustanna"
 version = "0.4.0"
 
 run {
-    fun String.takeIfValid() = takeIf { it.isNotBlank() && it != "null" }
+    fun String.takeIfValid() = takeIf { it.isNotBlank() && it != "auto" }
     fun String.maybeAddSuffix(suffix: String) = if (endsWith(suffix)) this else this + suffix
 
     val v = env.fetchOrNull("VERSION")?.takeIfValid()
